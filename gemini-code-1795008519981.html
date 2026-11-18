@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberGraph Engine v3.0 — Análise Visual de Rotas de Ataque e Defesa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    :root {
+      --bg-void: #070B14;
+      --bg-panel: #0F172A;
+      --bg-card: #1E293B;
+      --bg-hover: #283548;
+      --border: #334155;
+      --text-main: #F8FAFC;
+      --text-sub: #94A3B8;
+      --text-muted: #64748B;
+      --accent-attack: #F43F5E;
+      --accent-tie: #FB923C;
+      --accent-defense: #10B981;
+      --accent-scan: #38BDF8;
+      --accent-closed: #818CF8;
+      --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-void);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* ================= HEADER ================= */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .badge-tag {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-scan);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    .mode-switcher {
+      display: flex;
+      background: var(--bg-void);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      gap: 4px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: 0.2s;
+    }
+
+    .mode-btn:hover { color: var(--text-main); }
+    .mode-btn.active {
+      background: var(--bg-card);
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-2d { background: var(--accent-scan); }
+    .dot-3d { background: var(--accent-defense); }
+
+    /* ================= BANNER DE OBJETIVO DIDÁTICO ================= */
+    .purpose-banner {
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85));
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .purpose-text {
+      max-width: 900px;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    .purpose-text strong {
+      color: var(--text-main);
+      display: block;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+
+    /* ================= WORKSPACE GRID ================= */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 370px;
+      gap: 16px;
+      padding: 16px 20px;
+      max-width: 1800px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    /* ================= VIEWPORT CARD ================= */
+    .viewport-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewport-toolbar {
+      padding: 10px 14px;
+      background: rgba(7, 11, 20, 0.6);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.15s;
+    }
+
+    .btn:hover { background: var(--bg-hover); border-color: #475569; }
+    .btn.primary {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent-scan);
+      color: var(--accent-scan);
+    }
+    .btn.defense {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-defense);
+      color: var(--accent-defense);
+    }
+
+    select, input[type="range"] {
+      background: var(--bg-void);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12px;
+      font-family: var(--font-ui);
+    }
+
+    .canvas-stage {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      background: radial-gradient(circle at center, #0F172A 0%, #070B14 100%);
+    }
+
+    #canvas2d, #container3d {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #container3d { display: none; cursor: grab; }
+    #container3d:active { cursor: grabbing; }
+
+    /* Legenda Visual Clara */
+    .visual-legend {
+      padding: 10px 14px;
+      background: rgba(7, 11, 20, 0.85);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .legend-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 4px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    /* ================= PAINEL EXPLICATIVO DE ROTA & SEGURANÇA ================= */
+    .analysis-banner {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent-attack);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .analysis-banner.protected {
+      border-left-color: var(--accent-defense);
+    }
+
+    .analysis-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .analysis-body {
+      font-size: 13.5px;
+      color: var(--text-main);
+    }
+
+    .analysis-why {
+      font-size: 12.5px;
+      color: var(--text-sub);
+    }
+
+    /* ================= CONSOLES DUPLOS (SEMPRE VISÍVEIS) ================= */
+    .consoles-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .console-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      height: 270px;
+      overflow: hidden;
+    }
+
+    .console-header {
+      padding: 9px 14px;
+      background: rgba(7, 11, 20, 0.7);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .console-output {
+      flex: 1;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      overflow-y: auto;
+      background: #060911;
+      line-height: 1.6;
+    }
+
+    .log-line {
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed rgba(51, 65, 85, 0.35);
+    }
+
+    .tag-cmd { color: var(--accent-scan); font-weight: 700; }
+    .tag-atk { color: var(--accent-attack); font-weight: 700; }
+    .tag-def { color: var(--accent-defense); font-weight: 700; }
+    .tag-tie { color: var(--accent-tie); font-weight: 700; }
+
+    /* ================= INSPECTOR SIDEBAR ================= */
+    .inspector-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-box h2 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-sub);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .kpi-item {
+      background: var(--bg-void);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .kpi-label { font-size: 11px; color: var(--text-sub); }
+    .kpi-value { font-family: var(--font-mono); font-size: 18px; font-weight: 800; margin-top: 2px; }
+
+    /* Controles de Segurança (Checkboxes visuais grandes) */
+    .defense-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .defense-card {
+      background: var(--bg-void);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      transition: 0.15s;
+    }
+
+    .defense-card:hover { border-color: #475569; }
+    .defense-card.active {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--accent-defense);
+    }
+
+    .defense-card input[type="checkbox"] {
+      margin-top: 3px;
+      accent-color: var(--accent-defense);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .defense-info strong {
+      display: block;
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .defense-info span {
+      display: block;
+      font-size: 11.5px;
+      color: var(--text-sub);
+      margin-top: 2px;
+    }
+
+    .edge-box {
+      background: var(--bg-void);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12.5px;
+    }
+
+    /* Labels 3D */
+    .label-3d {
+      position: absolute;
+      background: rgba(7, 11, 20, 0.88);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+      transform: translate(-50%, -145%);
+      white-space: nowrap;
+    }
+
+    /* ================= MEDIA QUERIES (RESPONSIVIDADE MULTI-DISPOSITIVOS) ================= */
+    @media (max-width: 1180px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .inspector-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 780px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .mode-switcher {
+        width: 100%;
+      }
+      .mode-btn {
+        flex: 1;
+        justify-content: center;
+        font-size: 12px;
+        padding: 8px 6px;
+      }
+      .canvas-stage {
+        height: 380px;
+      }
+      .consoles-grid {
+        grid-template-columns: 1fr;
+      }
+      .inspector-col {
+        grid-template-columns: 1fr;
+      }
+      .console-card {
+        height: 240px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CABEÇALHO -->
+  <header>
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <circle cx="12" cy="11" r="2.5" stroke="#10B981"/>
+      </svg>
+      <div>
+        <h1>CYBERGRAPH ENGINE <span class="badge-tag">v3.0 SEGURANÇA & GRAFOS</span></h1>
+      </div>
+    </div>
+
+    <div class="mode-switcher">
+      <button class="mode-btn active" id="tab2d" onclick="setMode('2d')">
+        <span class="dot dot-2d"></span>
+        1. Laboratório 2D (Lógica & Rotas)
+      </button>
+      <button class="mode-btn" id="tab3d" onclick="setMode('3d')">
+        <span class="dot dot-3d"></span>
+        2. Rede Real 3D (Multi-Ilhas & Aplicações)
+      </button>
+    </div>
+  </header>
+
+  <!-- BANNER EXPLICATIVO DO OBJETIVO DA ABA ATUAL -->
+  <div class="purpose-banner">
+    <div class="purpose-text" id="purposeBannerText">
+      <strong>Objetivo do Modo 2D — Análise Didática de Caminhos de Ataque e Defesa:</strong>
+      Visualize passo a passo como um invasor busca o menor custo entre a <b>Internet</b> e o <b>Banco de Dados</b>. Ative os controles de segurança no painel lateral para observar como o grafo bloqueia ou desvia rotas (Defesa em Profundidade).
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn defense" onclick="applyFullDefense()">🛡️ Ativar Defesa Total (Antes vs Depois)</button>
+      <button class="btn" onclick="resetDefenses()">↺ Remover Defesas</button>
+    </div>
+  </div>
+
+  <!-- ÁREA PRINCIPAL -->
+  <main class="workspace">
+    <!-- COLUNA ESQUERDA: VIEWPORT + ANÁLISE + CONSOLES -->
+    <div class="left-column">
+
+      <!-- VIEWPORT 2D / 3D -->
+      <div class="viewport-card">
+        <div class="viewport-toolbar">
+          <div class="toolbar-group" id="controls2D">
+            <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ Simular Passo a Passo</button>
+            <button class="btn" onclick="stepForward()">⏭ Próximo Passo</button>
+            <button class="btn" onclick="resetSteps()">↺ Reiniciar</button>
+            <select id="layoutMode" onchange="draw2D()">
+              <option value="topological">Visão Topológica (Ilha Intranet)</option>
+              <option value="solar">Visão Orbital (Sistema Solar)</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group" id="controls3D" style="display:none;">
+            <button class="btn primary" onclick="triggerTrafficWave()">⚡ Simular Pico de Acessos & Ataques</button>
+            <button class="btn" onclick="resetCamera3D()">🎥 Resetar Câmera 3D</button>
+            <span style="font-size:12px; color:var(--text-sub);">Arraste para girar · Scroll para zoom</span>
+          </div>
+
+          <div class="toolbar-group">
+            <span style="font-size:12px; color:var(--text-sub);">Status da Rede:</span>
+            <span id="networkStatusBadge" class="badge-tag" style="border-color:var(--accent-attack); color:var(--accent-attack); background:rgba(244,63,94,0.12);">
+              VULNERÁVEL (CUSTO 11)
+            </span>
+          </div>
+        </div>
+
+        <div class="canvas-stage" id="stageContainer">
+          <canvas id="canvas2d"></canvas>
+          <div id="container3d"></div>
+          <div id="labels3d" style="position:absolute; inset:0; pointer-events:none; overflow:hidden;"></div>
+        </div>
+
+        <div class="visual-legend">
+          <div class="legend-tag"><span class="swatch" style="background:var(--accent-attack);"></span> Rota de Ataque Preferencial (Menor Custo)</div>
+          <div class="legend-tag"><span class="swatch" style="background:var(--accent-tie);"></span> Rota Alternativa Empatada</div>
+          <div class="legend-tag"><span class="swatch" style="background:var(--accent-defense);"></span> Barreira de Segurança Ativa (MFA / Firewall / Segmentação)</div>
+          <div class="legend-tag"><span class="swatch" style="background:var(--accent-scan);"></span> Nó em Análise pelo Algoritmo</div>
+        </div>
+      </div>
+
+      <!-- QUADRO DE EXPLICAÇÃO CLARA: QUAL ROTA FOI ESCOLHIDA E POR QUÊ -->
+      <div class="analysis-banner" id="analysisBox">
+        <div class="analysis-title">
+          <span id="analysisHeadline">⚠️ Análise Atual: Empate Crítico de Risco (Custo Mínimo = 11)</span>
+          <span style="font-family:var(--font-mono); font-size:12px;" id="analysisDiffBadge">Sem Controles Ativos</span>
+        </div>
+        <div class="analysis-body" id="analysisRouteText">
+          Rotas escolhidas pelo atacante: <b>Internet → VPN → Estação → AD → Banco</b> (2+3+2+4 = 11) e <b>Internet → VPN → AD → Banco</b> (2+5+4 = 11).
+        </div>
+        <div class="analysis-why" id="analysisWhyText">
+          <b>Por que isso acontece?</b> Como não há autenticação multifator (MFA) na VPN nem segmentação no Active Directory, o atacante atravessa a borda da rede com custo mínimo (2) e atinge o banco de dados por dois caminhos diferentes.
+        </div>
+      </div>
+
+      <!-- CONSOLES SEMPRE VISÍVEIS (LADO A LADO NO DESKTOP, EMPILHADOS NO MOBILE) -->
+      <div class="consoles-grid">
+        <!-- Console 1: Raciocínio do Algoritmo & Heap -->
+        <div class="console-card">
+          <div class="console-header">
+            <span>🧠 Console 1: Decisão do Algoritmo (Dijkstra & Pesos)</span>
+            <span style="color:var(--accent-scan); font-family:var(--font-mono);">Heap Binário</span>
+          </div>
+          <div class="console-output" id="algoConsole"></div>
+        </div>
+
+        <!-- Console 2: Simulação de Tráfego, Comandos e Bloqueios -->
+        <div class="console-card">
+          <div class="console-header">
+            <span>🛡️ Console 2: Terminal de Rede (Ataque vs Defesa)</span>
+            <span style="color:var(--accent-defense); font-family:var(--font-mono);">IDS / Firewall Logs</span>
+          </div>
+          <div class="console-output" id="securityConsole"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COLUNA DIREITA: CONTROLES DE SEGURANÇA E INSPECTOR -->
+    <aside class="inspector-col">
+      <!-- KPIs de Impacto -->
+      <div class="panel-box">
+        <h2>Impacto da Segurança</h2>
+        <div class="kpi-grid">
+          <div class="kpi-item">
+            <div class="kpi-label">Custo p/ Invadir</div>
+            <div class="kpi-value" id="kpiCost" style="color:var(--accent-attack);">11</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-label">Nível de Risco</div>
+            <div class="kpi-value" id="kpiRisk" style="color:var(--accent-attack);">ALTO</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-label">Rotas Críticas</div>
+            <div class="kpi-value" id="kpiPaths">2</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-label">Nós Fechados</div>
+            <div class="kpi-value" id="kpiClosed" style="color:var(--accent-closed);">83%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controles de Defesa em Profundidade (Seção 6 do PDF) -->
+      <div class="panel-box">
+        <h2>
+          <span>Controles de Segurança</span>
+          <span style="font-size:10px; color:var(--accent-defense);">Clique p/ Testar</span>
+        </h2>
+        <div class="defense-list">
+          <label class="defense-card" id="card-mfa">
+            <input type="checkbox" id="chk-mfa" onchange="toggleDefense('mfa')">
+            <div class="defense-info">
+              <strong>1. MFA + Certificado na VPN</strong>
+              <span>Eleva peso <b>Internet → VPN</b> de <code>2</code> para <code>6</code>. Dificulta acesso inicial.</span>
+            </div>
+          </label>
+
+          <label class="defense-card" id="card-db">
+            <input type="checkbox" id="chk-db" onchange="toggleDefense('db')">
+            <div class="defense-info">
+              <strong>2. Firewall & PAM no Banco (AD)</strong>
+              <span>Eleva peso <b>AD → Banco</b> de <code>4</code> para <code>8</code>. Protege credenciais privilegiadas.</span>
+            </div>
+          </label>
+
+          <label class="defense-card" id="card-srv">
+            <input type="checkbox" id="chk-srv" onchange="toggleDefense('srv')">
+            <div class="defense-info">
+              <strong>3. Microssegmentação Servidor → BD</strong>
+              <span>Eleva peso <b>Servidor → Banco</b> de <code>5</code> para <code>9</code>. Fecha rota secundária.</span>
+            </div>
+          </label>
+
+          <label class="defense-card" id="card-edr">
+            <input type="checkbox" id="chk-edr" onchange="toggleDefense('edr')">
+            <div class="defense-info">
+              <strong>4. EDR / Antivírus na Estação</strong>
+              <span>Eleva peso <b>Internet → Estação</b> de <code>6</code> para <code>10</code>. Bloqueia phishing direto.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Inspetor de Aresta Individual -->
+      <div class="panel-box">
+        <h2>Inspetor Manual de Conexão</h2>
+        <div class="edge-box" id="manualEdgeInspector">
+          Clique sobre qualquer número de peso no grafo 2D para ajustar manualmente a resistência daquela conexão.
+        </div>
+      </div>
+    </aside>
+  </main>
+
+<script>
+/**
+ * ============================================================================
+ * 1. DADOS DO GRAFO E MOTOR DE CAMINHO MÍNIMO (DIJKSTRA + EMPATES)
+ * ============================================================================
+ */
+const nodes2D = [
+  { id: 'Internet', label: 'Internet', sub: 'Externa', x: 0.10, y: 0.50, ring: 3 },
+  { id: 'VPN',      label: 'VPN',      sub: 'Gateway', x: 0.30, y: 0.24, ring: 2 },
+  { id: 'Estação',  label: 'Estação',  sub: 'Usuário', x: 0.45, y: 0.56, ring: 2 },
+  { id: 'AD',       label: 'AD',       sub: 'Diretório', x: 0.68, y: 0.24, ring: 1 },
+  { id: 'Servidor', label: 'Servidor', sub: 'Aplicação', x: 0.70, y: 0.80, ring: 1 },
+  { id: 'Banco',    label: 'Banco',    sub: 'Crítico', x: 0.90, y: 0.50, ring: 0 }
+];
+
+let edges = [
+  { id: 'e1', from: 'Internet', to: 'VPN',      weight: 2, base: 2, defenseName: 'MFA na VPN', active: false },
+  { id: 'e2', from: 'Internet', to: 'Estação',  weight: 6, base: 6, defenseName: 'EDR / Filtro Phishing', active: false },
+  { id: 'e3', from: 'VPN',      to: 'Estação',  weight: 3, base: 3, defenseName: 'Isolamento VLAN', active: false },
+  { id: 'e4', from: 'VPN',      to: 'AD',       weight: 5, base: 5, defenseName: 'ACL Restrita AD', active: false },
+  { id: 'e5', from: 'Estação',  to: 'AD',       weight: 2, base: 2, defenseName: 'Zero Trust Host', active: false },
+  { id: 'e6', from: 'Estação',  to: 'Servidor', weight: 2, base: 2, defenseName: 'Segmentação App', active: false },
+  { id: 'e7', from: 'AD',       to: 'Servidor', weight: 3, base: 3, defenseName: 'Kerberos Hardening', active: false },
+  { id: 'e8', from: 'AD',       to: 'Banco',    weight: 4, base: 4, defenseName: 'PAM / Firewall BD', active: false },
+  { id: 'e9', from: 'Servidor', to: 'Banco',    weight: 5, base: 5, defenseName: 'Microssegmentação BD', active: false }
+];
+
+let activeMode = '2d';
+let selectedEdgeId = null;
+let stepsList = [];
+let currentStep = -1;
+let timerPlay = null;
+let primaryRouteEdges = new Set();
+let tiedRouteEdges = new Set();
+
+function runDijkstraAnalysis() {
+  const dist = {};
+  const visited = new Set();
+  const steps = [];
+
+  nodes2D.forEach(n => dist[n.id] = Infinity);
+  dist['Internet'] = 0;
+
+  steps.push({
+    current: 'Internet',
+    edgeId: null,
+    dist: { ...dist },
+    visited: new Set(),
+    log: `[INIT] Origem 'Internet' = 0. Todos os ativos internos iniciam com custo ∞.`
+  });
+
+  while (visited.size < nodes2D.length) {
+    let u = null;
+    let bestD = Infinity;
+    for (const n of nodes2D) {
+      if (!visited.has(n.id) && dist[n.id] < bestD) {
+        bestD = dist[n.id];
+        u = n.id;
+      }
+    }
+    if (!u) break;
+    visited.add(u);
+
+    steps.push({
+      current: u,
+      edgeId: null,
+      dist: { ...dist },
+      visited: new Set(visited),
+      log: `[HEAP] Nó '${u}' selecionado com menor custo acumulado (${bestD}).`
+    });
+
+    if (u === 'Banco') {
+      steps.push({
+        current: u,
+        edgeId: null,
+        dist: { ...dist },
+        visited: new Set(visited),
+        log: `[STOP] Parada Antecipada! Alvo 'Banco' atingido com custo mínimo = ${bestD}.`
+      });
+      break;
+    }
+
+    for (const e of edges.filter(x => x.from === u)) {
+      const candidate = dist[u] + e.weight;
+      const improved = candidate < dist[e.to];
+      if (improved) dist[e.to] = candidate;
+
+      steps.push({
+        current: u,
+        edgeId: e.id,
+        dist: { ...dist },
+        visited: new Set(visited),
+        log: `[RELAX] ${u} → ${e.to} (peso ${e.weight}${e.active ? ' 🛡️' : ''}): ${dist[u]}+${e.weight}=${candidate} ${improved ? '→ NOVO MENOR CUSTO!' : '(descartado)'}`
+      });
+    }
+  }
+
+  // Buscar todas as rotas ótimas empatadas
+  const minCost = dist['Banco'];
+  const optimalPaths = [];
+  function dfsPaths(curr, pNodes, pEdges) {
+    if (curr === 'Banco') {
+      optimalPaths.push({ nodes: [...pNodes], edges: [...pEdges] });
+      return;
+    }
+    for (const e of edges.filter(x => x.from === curr)) {
+      if (dist[curr] + e.weight === dist[e.to]) {
+        pNodes.push(e.to);
+        pEdges.push(e.id);
+        dfsPaths(e.to, pNodes, pEdges);
+        pNodes.pop();
+        pEdges.pop();
+      }
+    }
+  }
+  dfsPaths('Internet', ['Internet'], []);
+
+  return {
+    minCost,
+    optimalPaths,
+    closedPercent: Math.round((visited.size / nodes2D.length) * 100),
+    steps
+  };
+}
+
+function updateSystemState(finishImmediately = true) {
+  const result = runDijkstraAnalysis();
+  stepsList = result.steps;
+
+  primaryRouteEdges.clear();
+  tiedRouteEdges.clear();
+
+  if (result.optimalPaths.length > 0) {
+    result.optimalPaths[0].edges.forEach(id => primaryRouteEdges.add(id));
+    for (let i = 1; i < result.optimalPaths.length; i++) {
+      result.optimalPaths[i].edges.forEach(id => {
+        if (!primaryRouteEdges.has(id)) tiedRouteEdges.add(id);
+      });
+    }
+  }
+
+  // Atualizar KPIs
+  const kpiCost = document.getElementById('kpiCost');
+  const kpiRisk = document.getElementById('kpiRisk');
+  const statusBadge = document.getElementById('networkStatusBadge');
+
+  kpiCost.textContent = result.minCost;
+  document.getElementById('kpiPaths').textContent = result.optimalPaths.length;
+  document.getElementById('kpiClosed').textContent = result.closedPercent + '%';
+
+  if (result.minCost >= 16) {
+    kpiCost.style.color = 'var(--accent-defense)';
+    kpiRisk.textContent = 'BAIXO';
+    kpiRisk.style.color = 'var(--accent-defense)';
+    statusBadge.textContent = `PROTEGIDO (CUSTO ${result.minCost})`;
+    statusBadge.style.borderColor = 'var(--accent-defense)';
+    statusBadge.style.color = 'var(--accent-defense)';
+    statusBadge.style.background = 'rgba(16,185,129,0.12)';
+  } else if (result.minCost >= 12) {
+    kpiCost.style.color = 'var(--accent-tie)';
+    kpiRisk.textContent = 'MÉDIO';
+    kpiRisk.style.color = 'var(--accent-tie)';
+    statusBadge.textContent = `DESVIADO (CUSTO ${result.minCost})`;
+    statusBadge.style.borderColor = 'var(--accent-tie)';
+    statusBadge.style.color = 'var(--accent-tie)';
+    statusBadge.style.background = 'rgba(251,146,60,0.12)';
+  } else {
+    kpiCost.style.color = 'var(--accent-attack)';
+    kpiRisk.textContent = 'ALTO';
+    kpiRisk.style.color = 'var(--accent-attack)';
+    statusBadge.textContent = `VULNERÁVEL (CUSTO ${result.minCost})`;
+    statusBadge.style.borderColor = 'var(--accent-attack)';
+    statusBadge.style.color = 'var(--accent-attack)';
+    statusBadge.style.background = 'rgba(244,63,94,0.12)';
+  }
+
+  updateExplanationBanner(result);
+
+  if (finishImmediately) {
+    currentStep = stepsList.length - 1;
+    renderConsolesFull(result);
+  }
+
+  draw2D();
+  update3DColors();
+}
+
+function updateExplanationBanner(result) {
+  const box = document.getElementById('analysisBox');
+  const headline = document.getElementById('analysisHeadline');
+  const diffBadge = document.getElementById('analysisDiffBadge');
+  const routeText = document.getElementById('analysisRouteText');
+  const whyText = document.getElementById('analysisWhyText');
+
+  const activeDefenses = edges.filter(e => e.active);
+  box.classList.toggle('protected', result.minCost >= 15);
+
+  const routesStr = result.optimalPaths
+    .map(p => `<b>${p.nodes.join(' → ')}</b>`)
+    .join(' &nbsp;e&nbsp; ');
+
+  routeText.innerHTML = `Rota(s) de menor resistência escolhida(s): ${routesStr} (Custo Total = <b>${result.minCost}</b>).`;
+
+  if (activeDefenses.length === 0) {
+    headline.textContent = '⚠️ Estado Base: Rede Exposta (Empate de Rotas Mínimas = 11)';
+    diffBadge.textContent = '+0% de resistência';
+    whyText.innerHTML = `<b>Por que essa rota foi escolhida?</b> Sem controles adicionais, entrar pela <b>VPN (peso 2)</b> é 3x mais barato que atacar a Estação diretamente (peso 6). O atacante encontra dois caminhos empatados até o Banco.`;
+  } else {
+    const gain = Math.round(((result.minCost - 11) / 11) * 100);
+    headline.textContent = result.minCost >= 16
+      ? '🛡️ Defesa em Profundidade Eficaz! Custo de Ataque Maximizado'
+      : '🔄 Efeito Água: A Defesa Forçou o Atacante a Desviar de Rota';
+    diffBadge.textContent = `+${gain}% mais difícil que a base (11 → ${result.minCost})`;
+
+    const names = activeDefenses.map(d => d.defenseName).join(', ');
+    whyText.innerHTML = result.minCost >= 16
+      ? `<b>Por que a segurança funcionou?</b> Com <b>${names}</b> ativos simultaneamente, todos os gargalos críticos foram endurecidos. Não existe mais atalho barato até o Banco de Dados.`
+      : `<b>Por que a rota mudou?</b> Ao ativar <b>${names}</b>, o caminho original ficou caro demais e o algoritmo desviou automaticamente para a rota alternativa de menor resistência restante. Combine mais controles para fechar o cerco!`;
+  }
+}
+
+function renderConsolesFull(result) {
+  const algoBox = document.getElementById('algoConsole');
+  const secBox = document.getElementById('securityConsole');
+
+  algoBox.innerHTML = stepsList.map(s => `<div class="log-line">${s.log}</div>`).join('');
+  algoBox.scrollTop = algoBox.scrollHeight;
+
+  let secHTML = '';
+  const activeDefenses = edges.filter(e => e.active);
+
+  if (activeDefenses.length > 0) {
+    activeDefenses.forEach(d => {
+      secHTML += `<div class="log-line"><span class="tag-def">[DEFESA ATIVA]</span> ${d.defenseName} bloqueando transição <b>${d.from} → ${d.to}</b> (Peso elevado: ${d.base} → ${d.weight}).</div>`;
+    });
+  } else {
+    secHTML += `<div class="log-line"><span class="tag-cmd">[FIREWALL]</span> Apenas regras padrão ativas. Perímetro VPN sem MFA.</div>`;
+  }
+
+  result.optimalPaths.forEach((p, idx) => {
+    secHTML += `<div class="log-line"><span class="tag-atk">[VETOR ATAQUE #${idx + 1}]</span> Explorando sequência: <b>${p.nodes.join(' → ')}</b> (Custo acumulado: ${result.minCost}).</div>`;
+  });
+
+  if (result.minCost >= 16) {
+    secHTML += `<div class="log-line"><span class="tag-def">[IDS / SIEM]</span> Tentativa de movimentação lateral contida! Custo de exploração acima do limiar crítico.</div>`;
+  }
+
+  secBox.innerHTML = secHTML;
+}
+
+/**
+ * ============================================================================
+ * 2. CONTROLES INTERATIVOS DE SEGURANÇA
+ * ============================================================================
+ */
+function toggleDefense(key) {
+  const map = {
+    mfa: { edgeId: 'e1', cardId: 'card-mfa', chkId: 'chk-mfa' },
+    db:  { edgeId: 'e8', cardId: 'card-db',  chkId: 'chk-db' },
+    srv: { edgeId: 'e9', cardId: 'card-srv', chkId: 'chk-srv' },
+    edr: { edgeId: 'e2', cardId: 'card-edr', chkId: 'chk-edr' }
+  };
+  const item = map[key];
+  const isChecked = document.getElementById(item.chkId).checked;
+  document.getElementById(item.cardId).classList.toggle('active', isChecked);
+
+  const edge = edges.find(e => e.id === item.edgeId);
+  edge.active = isChecked;
+  edge.weight = isChecked ? edge.base + 4 : edge.base;
+
+  updateSystemState(true);
+}
+
+function applyFullDefense() {
+  ['mfa', 'db', 'srv'].forEach(k => {
+    const chk = document.getElementById('chk-' + k);
+    if (!chk.checked) {
+      chk.checked = true;
+      toggleDefense(k);
+    }
+  });
+}
+
+function resetDefenses() {
+  ['mfa', 'db', 'srv', 'edr'].forEach(k => {
+    const chk = document.getElementById('chk-' + k);
+    chk.checked = false;
+    document.getElementById('card-' + k).classList.remove('active');
+  });
+  edges.forEach(e => { e.weight = e.base; e.active = false; });
+  updateSystemState(true);
+}
+
+/**
+ * ============================================================================
+ * 3. RENDERIZADOR 2D (CANVAS RESPONSIVO COM ESCUDOS VISUAIS)
+ * ============================================================================
+ */
+const canvas2d = document.getElementById('canvas2d');
+const ctx = canvas2d.getContext('2d');
+
+function resizeStage() {
+  const stage = document.getElementById('stageContainer');
+  canvas2d.width = stage.clientWidth;
+  canvas2d.height = stage.clientHeight;
+  draw2D();
+
+  if (renderer3d) {
+    camera3d.aspect = stage.clientWidth / stage.clientHeight;
+    camera3d.updateProjectionMatrix();
+    renderer3d.setSize(stage.clientWidth, stage.clientHeight);
+  }
+}
+window.addEventListener('resize', resizeStage);
+
+function getCoords2D(node) {
+  const w = canvas2d.width;
+  const h = canvas2d.height;
+  const mode = document.getElementById('layoutMode').value;
+
+  if (mode === 'topological') {
+    return { x: node.x * w, y: node.y * h };
+  } else {
+    const cx = w * 0.5, cy = h * 0.5;
+    const maxR = Math.min(w, h) * 0.37;
+    if (node.id === 'Banco') return { x: cx, y: cy };
+    const radii = { 1: maxR * 0.42, 2: maxR * 0.72, 3: maxR * 1.0 };
+    const angles = {
+      'AD': -Math.PI * 0.35,
+      'Servidor': Math.PI * 0.35,
+      'VPN': -Math.PI * 0.65,
+      'Estação': Math.PI * 0.65,
+      'Internet': Math.PI
+    };
+    return {
+      x: cx + Math.cos(angles[node.id]) * radii[node.ring],
+      y: cy + Math.sin(angles[node.id]) * radii[node.ring]
+    };
+  }
+}
+
+function draw2D() {
+  if (activeMode !== '2d') return;
+  const w = canvas2d.width, h = canvas2d.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const mode = document.getElementById('layoutMode').value;
+  const st = stepsList[currentStep] || { visited: new Set(), dist: {}, current: null, edgeId: null };
+  const finished = currentStep === stepsList.length - 1;
+
+  // Ilha / Órbitas
+  if (mode === 'topological') {
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.04)';
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(w * 0.37, h * 0.10, w * 0.59, h * 0.80, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.75)';
+    ctx.font = '700 11px "JetBrains Mono"';
+    ctx.textAlign = 'left';
+    ctx.fillText('ILHA CORPORATIVA (INTRANET PROTEGIDA)', w * 0.39, h * 0.14);
+  } else {
+    const cx = w * 0.5, cy = h * 0.5, maxR = Math.min(w, h) * 0.37;
+    [0.42, 0.72, 1.0].forEach((m, i) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, maxR * m, 0, Math.PI * 2);
+      ctx.strokeStyle = i === 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(71, 85, 105, 0.45)';
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+
+  // Arestas
+  edges.forEach(edge => {
+    const n1 = nodes2D.find(n => n.id === edge.from);
+    const n2 = nodes2D.find(n => n.id === edge.to);
+    const p1 = getCoords2D(n1);
+    const p2 = getCoords2D(n2);
+
+    const isOpt = finished && primaryRouteEdges.has(edge.id);
+    const isTie = finished && tiedRouteEdges.has(edge.id);
+    const isScanning = st.edgeId === edge.id;
+
+    let color = '#475569';
+    let width = 2;
+    if (isScanning) { color = '#38BDF8'; width = 4; }
+    else if (isOpt) { color = '#F43F5E'; width = 4; }
+    else if (isTie) { color = '#FB923C'; width = 3; }
+    else if (edge.active) { color = '#10B981'; width = 2.5; }
+
+    const mx = (p1.x + p2.x) / 2;
+    const my = (p1.y + p2.y) / 2 - (edge.from === 'VPN' && edge.to === 'AD' ? 28 : 0);
+
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.quadraticCurveTo(mx, my, p2.x, p2.y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    if (isTie) ctx.setLineDash([7, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Seta
+    const angle = Math.atan2(p2.y - my, p2.x - mx);
+    const rNode = w < 600 ? 22 : 28;
+    const tipX = p2.x - Math.cos(angle) * (rNode + 3);
+    const tipY = p2.y - Math.sin(angle) * (rNode + 3);
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - 10 * Math.cos(angle - 0.5), tipY - 10 * Math.sin(angle - 0.5));
+    ctx.lineTo(tipX - 10 * Math.cos(angle + 0.5), tipY - 10 * Math.sin(angle + 0.5));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Pílula de Peso + Escudo se defendido
+    const lx = (p1.x + 2 * mx + p2.x) / 4;
+    const ly = (p1.y + 2 * my + p2.y) / 4;
+    const label = edge.active ? `🛡️ ${edge.weight}` : `${edge.weight}`;
+
+    ctx.font = '700 12px "JetBrains Mono"';
+    const boxW = ctx.measureText(label).width + 16;
+    ctx.fillStyle = edge.active ? '#064E3B' : '#070B14';
+    ctx.strokeStyle = edge.active ? '#10B981' : color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(lx - boxW / 2, ly - 12, boxW, 24, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#F8FAFC';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, lx, ly);
+
+    edge._hit = { x: lx, y: ly, w: boxW, h: 24 };
+  });
+
+  // Vértices
+  const rNode = w < 600 ? 22 : 28;
+  nodes2D.forEach(node => {
+    const p = getCoords2D(node);
+    const isCurr = st.current === node.id;
+    const isVis = st.visited && st.visited.has(node.id);
+    const d = st.dist ? st.dist[node.id] : Infinity;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rNode, 0, Math.PI * 2);
+    ctx.fillStyle = '#0F172A';
+    ctx.fill();
+
+    ctx.lineWidth = isCurr ? 4 : 2.5;
+    ctx.strokeStyle = isCurr ? '#38BDF8' : (node.id === 'Banco' ? '#F43F5E' : (isVis ? '#818CF8' : '#94A3B8'));
+    ctx.stroke();
+
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = w < 600 ? '700 10.5px "Inter"' : '700 12px "Inter"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.label, p.x, p.y - 3);
+
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '500 9.5px "Inter"';
+    ctx.fillText(node.sub, p.x, p.y + 10);
+
+    // Custo acumulado abaixo do nó
+    ctx.fillStyle = isVis ? '#818CF8' : '#64748B';
+    ctx.font = '700 10.5px "JetBrains Mono"';
+    ctx.fillText(d === Infinity ? 'custo: ∞' : `custo: ${d}`, p.x, p.y + rNode + 12);
+  });
+}
+
+// Clique para editar peso manualmente
+canvas2d.addEventListener('click', (e) => {
+  const rect = canvas2d.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  for (const edge of edges) {
+    if (edge._hit && Math.abs(mx - edge._hit.x) <= edge._hit.w / 2 && Math.abs(my - edge._hit.y) <= edge._hit.h / 2) {
+      selectedEdgeId = edge.id;
+      document.getElementById('manualEdgeInspector').innerHTML = `
+        <div style="font-family:var(--font-mono); font-weight:700; margin-bottom:8px; color:var(--accent-scan);">
+          Conexão: ${edge.from} → ${edge.to}
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span>Peso / Dificuldade: <b>${edge.weight}</b></span>
+          <input type="range" min="1" max="15" value="${edge.weight}" oninput="setManualWeight('${edge.id}', this.value)">
+        </div>
+        <div style="font-size:11px; color:var(--text-sub);">Peso original sem defesa: ${edge.base}</div>
+      `;
+      return;
+    }
+  }
+});
+
+function setManualWeight(id, val) {
+  const e = edges.find(x => x.id === id);
+  e.weight = parseInt(val, 10);
+  e.active = e.weight > e.base;
+  updateSystemState(true);
+}
+
+// Controles Passo a Passo
+function resetSteps() {
+  if (timerPlay) clearInterval(timerPlay);
+  timerPlay = null;
+  document.getElementById('btnPlay').textContent = '▶ Simular Passo a Passo';
+  currentStep = 0;
+  document.getElementById('algoConsole').innerHTML = `<div class="log-line">${stepsList[0].log}</div>`;
+  draw2D();
+}
+
+function stepForward() {
+  if (currentStep < stepsList.length - 1) {
+    currentStep++;
+    const box = document.getElementById('algoConsole');
+    box.innerHTML += `<div class="log-line">${stepsList[currentStep].log}</div>`;
+    box.scrollTop = box.scrollHeight;
+    draw2D();
+  }
+}
+
+function togglePlay() {
+  if (timerPlay) {
+    clearInterval(timerPlay);
+    timerPlay = null;
+    document.getElementById('btnPlay').textContent = '▶ Simular Passo a Passo';
+  } else {
+    if (currentStep >= stepsList.length - 1) resetSteps();
+    document.getElementById('btnPlay').textContent = '⏸ Pausar';
+    timerPlay = setInterval(() => {
+      if (currentStep < stepsList.length - 1) stepForward();
+      else togglePlay();
+    }, 650);
+  }
+}
+
+/**
+ * ============================================================================
+ * 4. ECOSSISTEMA 3D EM MINIATURA DA REDE REAL (MULTI-ILHAS & APLICAÇÕES)
+ * ============================================================================
+ */
+let scene3d, camera3d, renderer3d, controls3d;
+let map3D = {}, lines3D = [], packets3D = [], labels3D = [];
+let ready3D = false;
+
+// Topologia expandida: Nuvem Internet + 3 Ilhas (Intranet Corporativa, Cloud SaaS, Parceiros B2B)
+const ecosystemNodes3D = [
+  // Nuvem Pública (Internet)
+  { id: 'Internet',   label: 'Backbone Internet', pos: [-18, 2, 0],   color: 0x38BDF8, size: 2.3 },
+  { id: 'CliHome',    label: 'Usuários Home Office', pos: [-34, 12, 14], color: 0x94A3B8, size: 1.3 },
+  { id: 'CliMobile',  label: 'App Mobile Clientes',  pos: [-32, -10, 12],color: 0x94A3B8, size: 1.3 },
+  { id: 'ThreatActor',label: 'Origem de Ameaças',    pos: [-34, 4, -16], color: 0xF43F5E, size: 1.5 },
+
+  // Ilha 1: Intranet Corporativa (Grafo Principal do Estudo)
+  { id: 'VPN',        label: 'Gateway VPN',          pos: [0, 11, -6],   color: 0x10B981, size: 1.8 },
+  { id: 'Estação',    label: 'Estação Interna',      pos: [2, -7, 8],    color: 0x94A3B8, size: 1.6 },
+  { id: 'AD',         label: 'Active Directory',     pos: [16, 9, 4],    color: 0xFB923C, size: 2.0 },
+  { id: 'Servidor',   label: 'Servidor ERP',         pos: [18, -8, -5],  color: 0x38BDF8, size: 1.8 },
+  { id: 'Banco',      label: 'Banco Dados Central',  pos: [32, 0, 0],    color: 0xF43F5E, size: 2.4 },
+
+  // Ilha 2: Cloud SaaS & Aplicações Web
+  { id: 'WAF',        label: 'Cloud WAF / LB',       pos: [-6, 18, 22],  color: 0x10B981, size: 1.7 },
+  { id: 'WebCluster', label: 'Cluster Web / API',    pos: [10, 20, 26],  color: 0x38BDF8, size: 1.7 },
+  { id: 'SaaSDB',     label: 'Storage SaaS',         pos: [24, 18, 24],  color: 0x818CF8, size: 1.7 },
+
+  // Ilha 3: Rede de Parceiros B2B
+  { id: 'B2BGW',      label: 'Gateway Parceiro B2B', pos: [-4, -18, -20],color: 0xFB923C, size: 1.6 },
+  { id: 'PartnerApp', label: 'Sistema Fornecedor',   pos: [14, -18, -22],color: 0x94A3B8, size: 1.6 }
+];
+
+const extraLinks3D = [
+  { from: 'CliHome', to: 'Internet' },
+  { from: 'CliMobile', to: 'Internet' },
+  { from: 'ThreatActor', to: 'Internet' },
+  { from: 'Internet', to: 'WAF' },
+  { from: 'WAF', to: 'WebCluster' },
+  { from: 'WebCluster', to: 'SaaSDB' },
+  { from: 'WebCluster', to: 'Servidor' },
+  { from: 'Internet', to: 'B2BGW' },
+  { from: 'B2BGW', to: 'PartnerApp' },
+  { from: 'PartnerApp', to: 'Servidor' }
+];
+
+function init3DEcosystem() {
+  if (ready3D) return;
+  const stage = document.getElementById('stageContainer');
+  const container = document.getElementById('container3d');
+
+  scene3d = new THREE.Scene();
+  scene3d.fog = new THREE.FogExp2(0x070B14, 0.0065);
+
+  camera3d = new THREE.PerspectiveCamera(48, stage.clientWidth / stage.clientHeight, 0.1, 500);
+  camera3d.position.set(0, 26, 68);
+
+  renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer3d.setSize(stage.clientWidth, stage.clientHeight);
+  renderer3d.setPixelRatio(window.devicePixelRatio);
+  container.appendChild(renderer3d.domElement);
+
+  controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+  controls3d.enableDamping = true;
+
+  scene3d.add(new THREE.AmbientLight(0xffffff, 0.75));
+  const dirLight = new THREE.DirectionalLight(0x38BDF8, 1.2);
+  dirLight.position.set(20, 40, 30);
+  scene3d.add(dirLight);
+
+  // Criar 3 Cúpulas (Ilhas de Rede Isoladas por Firewalls)
+  const addIslandDome = (x, y, z, radius, colorHex) => {
+    const geo = new THREE.SphereGeometry(radius, 24, 24);
+    const mat = new THREE.MeshBasicMaterial({ color: colorHex, wireframe: true, transparent: true, opacity: 0.12 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    scene3d.add(mesh);
+  };
+  addIslandDome(16, 0, 0, 21, 0x10B981);    // Ilha 1: Intranet Corporativa
+  addIslandDome(10, 18, 24, 15, 0x38BDF8);  // Ilha 2: Cloud SaaS
+  addIslandDome(5, -18, -21, 13, 0xFB923C); // Ilha 3: Parceiros B2B
+
+  // Nós 3D
+  const labelsLayer = document.getElementById('labels3d');
+  ecosystemNodes3D.forEach(n => {
+    const geo = new THREE.SphereGeometry(n.size, 24, 24);
+    const mat = new THREE.MeshStandardMaterial({ color: n.color, emissive: n.color, emissiveIntensity: 0.35 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(...n.pos);
+    scene3d.add(mesh);
+    map3D[n.id] = mesh;
+
+    const div = document.createElement('div');
+    div.className = 'label-3d';
+    div.textContent = n.label;
+    labelsLayer.appendChild(div);
+    labels3D.push({ div, pos: mesh.position });
+  });
+
+  // Linhas
+  [...extraLinks3D, ...edges].forEach(l => {
+    const p1 = map3D[l.from].position;
+    const p2 = map3D[l.to].position;
+    const geo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+    const mat = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.65 });
+    const line = new THREE.Line(geo, mat);
+    scene3d.add(line);
+    lines3D.push({ line, link: l });
+  });
+
+  ready3D = true;
+  update3DColors();
+  loop3D();
+}
+
+function update3DColors() {
+  if (!ready3D) return;
+  lines3D.forEach(item => {
+    const e = item.link;
+    if (e.id && primaryRouteEdges.has(e.id)) {
+      item.line.material.color.setHex(0xF43F5E);
+      item.line.material.opacity = 1;
+    } else if (e.active) {
+      item.line.material.color.setHex(0x10B981);
+      item.line.material.opacity = 0.9;
+    } else {
+      item.line.material.color.setHex(0x475569);
+      item.line.material.opacity = 0.55;
+    }
+  });
+}
+
+function resetCamera3D() {
+  if (camera3d) {
+    camera3d.position.set(0, 26, 68);
+    controls3d.target.set(0, 0, 0);
+  }
+}
+
+function spawn3DTraffic(type) {
+  if (!ready3D) return;
+  const res = runDijkstraAnalysis();
+  let path = [];
+  let color = 0x10B981;
+
+  if (type === 'attack' && res.optimalPaths.length > 0) {
+    const chosen = res.optimalPaths[Math.floor(Math.random() * res.optimalPaths.length)].nodes;
+    path = ['ThreatActor', ...chosen];
+    color = 0xF43F5E;
+  } else if (type === 'saas') {
+    path = ['CliMobile', 'Internet', 'WAF', 'WebCluster', 'SaaSDB'];
+    color = 0x38BDF8;
+  } else if (type === 'b2b') {
+    path = ['B2BGW', 'PartnerApp', 'Servidor', 'Banco'];
+    color = 0xFB923C;
+  } else {
+    path = ['CliHome', 'Internet', 'VPN', 'Servidor', 'Banco'];
+    color = 0x10B981;
+  }
+
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(type === 'attack' ? 0.65 : 0.5, 12, 12),
+    new THREE.MeshBasicMaterial({ color })
+  );
+  scene3d.add(mesh);
+  packets3D.push({ mesh, path, idx: 0, t: 0, type });
+}
+
+function triggerTrafficWave() {
+  const types = ['attack', 'saas', 'b2b', 'legit'];
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => spawn3DTraffic(types[i % types.length]), i * 150);
+  }
+  const secBox = document.getElementById('securityConsole');
+  secBox.innerHTML += `<div class="log-line"><span class="tag-cmd">[3D MULTI-ILHA]</span> Pico de tráfego simultâneo disparado entre Internet, Cloud SaaS, B2B e Intranet.</div>`;
+  secBox.scrollTop = secBox.scrollHeight;
+}
+
+let tick3D = 0;
+function loop3D() {
+  requestAnimationFrame(loop3D);
+  if (activeMode !== '3d') return;
+  controls3d.update();
+  tick3D++;
+
+  if (tick3D % 40 === 0) spawn3DTraffic('saas');
+  if (tick3D % 55 === 0) spawn3DTraffic('legit');
+  if (tick3D % 70 === 0) spawn3DTraffic('attack');
+  if (tick3D % 90 === 0) spawn3DTraffic('b2b');
+
+  for (let i = packets3D.length - 1; i >= 0; i--) {
+    const p = packets3D[i];
+    if (p.idx >= p.path.length - 1) {
+      scene3d.remove(p.mesh);
+      packets3D.splice(i, 1);
+      continue;
+    }
+    const u = p.path[p.idx], v = p.path[p.idx + 1];
+    const edgeObj = edges.find(e => e.from === u && e.to === v);
+    const w = edgeObj ? edgeObj.weight : 2;
+    p.t += 0.045 / Math.sqrt(w);
+    p.mesh.position.lerpVectors(map3D[u].position, map3D[v].position, Math.min(1, p.t));
+    if (p.t >= 1) { p.t = 0; p.idx++; }
+  }
+
+  const stage = document.getElementById('stageContainer');
+  labels3D.forEach(item => {
+    const proj = item.pos.clone().project(camera3d);
+    if (proj.z > 1) item.div.style.display = 'none';
+    else {
+      item.div.style.display = 'block';
+      item.div.style.left = ((proj.x * 0.5 + 0.5) * stage.clientWidth) + 'px';
+      item.div.style.top = ((-(proj.y * 0.5) + 0.5) * stage.clientHeight) + 'px';
+    }
+  });
+
+  renderer3d.render(scene3d, camera3d);
+}
+
+/**
+ * ============================================================================
+ * 5. ALTERNÂNCIA DE MODOS (2D vs 3D)
+ * ============================================================================
+ */
+function setMode(mode) {
+  activeMode = mode;
+  document.getElementById('tab2d').classList.toggle('active', mode === '2d');
+  document.getElementById('tab3d').classList.toggle('active', mode === '3d');
+
+  document.getElementById('canvas2d').style.display = mode === '2d' ? 'block' : 'none';
+  document.getElementById('controls2D').style.display = mode === '2d' ? 'flex' : 'none';
+
+  document.getElementById('container3d').style.display = mode === '3d' ? 'block' : 'none';
+  document.getElementById('labels3d').style.display = mode === '3d' ? 'block' : 'none';
+  document.getElementById('controls3D').style.display = mode === '3d' ? 'flex' : 'none';
+
+  const banner = document.getElementById('purposeBannerText');
+  if (mode === '2d') {
+    banner.innerHTML = `<strong>Objetivo do Modo 2D — Análise Didática de Caminhos de Ataque e Defesa:</strong>
+      Visualize passo a passo como um invasor busca o menor custo entre a <b>Internet</b> e o <b>Banco de Dados</b>. Ative os controles de segurança no painel lateral para observar como o grafo bloqueia ou desvia rotas (Defesa em Profundidade).`;
+    resizeStage();
+  } else {
+    banner.innerHTML = `<strong>Objetivo do Modo 3D — Miniatura Real de Rede Multi-Ilhas (Internet, Intranet, Cloud SaaS e Parceiros B2B):</strong>
+      Observe múltiplas aplicações e usuários trafegando simultaneamente entre ilhas protegidas por Firewalls. Ao ativar defesas no painel, veja os pacotes de ataque desacelerarem e desviarem em tempo real.`;
+    init3DEcosystem();
+    resizeStage();
+  }
+}
+
+window.onload = () => {
+  resizeStage();
+  updateSystemState(true);
+};
+</script>
+</body>
+</html>

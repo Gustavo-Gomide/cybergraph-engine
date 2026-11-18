@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CyberGraph Engine</title>
+<meta name="description" content="Teoria dos Grafos aplicada à Segurança da Informação: Dijkstra, Bellman-Ford e Floyd-Warshall em caminhos de ataque, com laboratório 2D passo a passo e ecossistema 3D concorrente.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-void:#090D16;--bg-panel:#111827;--bg-elevated:#1E293B;--border-subtle:#334155;
+  --text-primary:#F8FAFC;--text-secondary:#94A3B8;--text-muted:#64748B;
+  --color-optimal:#F43F5E;--color-tie:#FB923C;--color-defense:#10B981;
+  --color-algo-scan:#38BDF8;--color-algo-closed:#818CF8;--color-island:rgba(16,185,129,.08);
+  --mono:'JetBrains Mono','Fira Code',monospace;--sans:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg-void);color:var(--text-primary);font:13px/1.45 var(--sans)}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;height:100vh;grid-template-columns:1fr 320px;grid-template-rows:44px 1fr 240px 26px;
+  grid-template-areas:"top top" "view side" "cons side" "foot foot"}
+header{grid-area:top;display:flex;align-items:center;gap:16px;padding:0 14px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle)}
+.logo{font-weight:700;letter-spacing:.3px}.logo b{color:var(--color-optimal)}
+.tabs{display:flex;gap:2px}
+.tab{background:var(--bg-elevated);border:1px solid var(--border-subtle);padding:5px 14px;border-radius:6px 6px 0 0;color:var(--text-secondary)}
+.tab.on{background:var(--bg-void);color:var(--text-primary);border-bottom-color:var(--bg-void)}
+.transport{margin-left:auto;display:flex;gap:6px;align-items:center}
+.btn{background:var(--bg-elevated);border:1px solid var(--border-subtle);padding:5px 10px;border-radius:6px}
+.btn:hover{border-color:var(--color-algo-scan)}
+.btn.on{background:#0c2a3a;border-color:var(--color-algo-scan);color:var(--color-algo-scan)}
+.btn.primary{background:var(--color-optimal);border-color:var(--color-optimal);color:#fff;font-weight:600}
+.viewport{grid-area:view;position:relative;overflow:hidden;background:var(--bg-void)}
+.viewport canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#v3d{display:none}
+.overlay{position:absolute;left:12px;top:10px;font:12px var(--mono);color:var(--text-secondary);pointer-events:none;background:rgba(17,24,39,.85);padding:8px 10px;border:1px solid var(--border-subtle);border-radius:6px;max-width:60%}
+.overlay .big{font-size:15px;color:var(--text-primary)}
+.legend{position:absolute;right:12px;bottom:10px;display:flex;gap:12px;font-size:11px;color:var(--text-secondary);background:rgba(17,24,39,.85);padding:6px 10px;border-radius:6px;border:1px solid var(--border-subtle)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+aside{grid-area:side;background:var(--bg-panel);border-left:1px solid var(--border-subtle);overflow:auto;padding:12px}
+aside h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin:14px 0 8px}
+aside h3:first-child{margin-top:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.scen{text-align:left;padding:7px 9px}
+.scen small{display:block;color:var(--text-secondary);font-size:11px}
+.card{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;padding:10px}
+label.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0;color:var(--text-secondary)}
+select,input[type=range]{width:100%}
+select{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:5px}
+.mono{font-family:var(--mono)}
+.consoles{grid-area:cons;background:var(--bg-panel);border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;min-height:0}
+.ctabs{display:flex;gap:2px;padding:4px 8px 0;border-bottom:1px solid var(--border-subtle)}
+.cbody{flex:1;overflow:auto;padding:8px 12px;font:12px/1.5 var(--mono);min-height:0}
+.cpane{display:none}.cpane.on{display:block}
+.log div{white-space:pre-wrap}
+.badge{display:inline-block;padding:0 5px;border-radius:3px;font-size:10px;font-weight:600;margin-right:6px}
+.b-INFO{background:#1e3a5f;color:#93c5fd}.b-ALGO{background:#0c2a3a;color:var(--color-algo-scan)}
+.b-ROUTE{background:#4c0519;color:#fda4af}.b-DEFENSE{background:#064e3b;color:#6ee7b7}.b-ALERT{background:#7c2d12;color:#fdba74}
+table.t{border-collapse:collapse;margin:4px 0 8px}
+table.t td,table.t th{border:1px solid var(--border-subtle);padding:2px 7px;text-align:center}
+table.t th{color:var(--text-secondary);font-weight:400}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.kpi{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;padding:8px}
+.kpi span{color:var(--text-secondary);font:11px var(--sans)}.kpi b{display:block;font-size:20px}
+footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--border-subtle);color:var(--text-muted);font-size:11px;display:flex;align-items:center;padding:0 12px;gap:16px}
+.hidden{display:none!important}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto 55vh auto 260px auto;grid-template-areas:"top" "view" "side" "cons" "foot";height:auto}
+  header{flex-wrap:wrap;padding:8px 16px}.transport{margin-left:0}
+  aside{border-left:0}footer{padding:6px 16px;flex-wrap:wrap}
+}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">Cyber<b>Graph</b> Engine</div>
+  <div class="tabs"><button class="tab on" data-view="2d">2D · Laboratório</button><button class="tab" data-view="3d">3D · Ecossistema</button></div>
+  <div class="transport" id="transport">
+    <button class="btn" id="bReset" title="Reset (R)">⟲ Reset</button>
+    <button class="btn" id="bStep" title="Próximo passo (→)">⏭ Passo</button>
+    <button class="btn primary" id="bPlay" title="Play/Pause (Espaço)">▶ Play</button>
+    <button class="btn" id="bRun">⚡ Resolver</button>
+    <label class="mono" style="color:var(--text-secondary);display:flex;gap:6px;align-items:center">vel <input type="range" id="speed" min="0.2" max="2" step="0.1" value="1" style="width:80px"> <span id="speedV">1.0x</span></label>
+  </div>
+</header>
+
+<main class="viewport" id="viewport">
+  <canvas id="v2d"></canvas>
+  <canvas id="v3d"></canvas>
+  <div class="overlay" id="overlay"></div>
+  <div class="legend" id="legend2d">
+    <span><i style="background:var(--color-algo-scan)"></i>explorando</span>
+    <span><i style="background:var(--color-algo-closed)"></i>fechado</span>
+    <span><i style="background:var(--color-optimal)"></i>rota ótima</span>
+    <span><i style="background:var(--color-tie)"></i>empate</span>
+    <span><i style="background:var(--color-defense)"></i>controle ativo</span>
+  </div>
+  <div class="legend hidden" id="legend3d">
+    <span><i style="background:var(--color-defense)"></i>tráfego legítimo</span>
+    <span><i style="background:var(--color-optimal)"></i>vetor de ataque</span>
+    <span><i style="background:var(--color-algo-scan)"></i>gateway</span>
+  </div>
+</main>
+
+<aside>
+  <h3>Cenários (What-If)</h3>
+  <div class="grid2" id="scenarios"></div>
+  <h3>Aresta selecionada</h3>
+  <div class="card" id="edgeEditor"><span style="color:var(--text-muted)">Clique numa aresta no 2D para editar.</span></div>
+  <div id="p2d">
+    <h3>Algoritmo</h3>
+    <select id="algo">
+      <option value="dijkstra">Dijkstra (Heap + parada antecipada)</option>
+      <option value="bellman">Bellman-Ford</option>
+      <option value="floyd">Floyd-Warshall</option>
+    </select>
+    <label class="row">Origem <select id="src" style="width:60%"></select></label>
+    <label class="row">Destino <select id="dst" style="width:60%"></select></label>
+    <label class="row">Layout <select id="layout" style="width:60%"><option value="h">Hierárquico E→D</option><option value="o">Orbital (Banco no núcleo)</option></select></label>
+    <label class="row"><span>Modo probabilístico <span class="mono">p = e<sup>-w</sup></span></span><input type="checkbox" id="prob"></label>
+  </div>
+  <div id="p3d" class="hidden">
+    <h3>Simulação concorrente</h3>
+    <label class="row">Requisições simultâneas <span class="mono" id="rateV">25</span></label>
+    <input type="range" id="rate" min="5" max="60" value="25">
+    <label class="row">Mostrar tráfego legítimo <input type="checkbox" id="fLeg" checked></label>
+    <label class="row">Mostrar vetores de ataque <input type="checkbox" id="fAtk" checked></label>
+    <label class="row">Perímetros de Firewall <input type="checkbox" id="fFw" checked></label>
+    <label class="row">Rotação automática <input type="checkbox" id="fRot" checked></label>
+    <h3>Defesas 3D (aumentam peso +4)</h3>
+    <div id="def3d"></div>
+    <h3>Benchmark de escala</h3>
+    <div class="grid2" id="bench3d"></div>
+    <button class="btn" id="back3d" style="margin-top:6px;width:100%">Voltar à topologia em ilhas</button>
+  </div>
+</aside>
+
+<section class="consoles">
+  <div class="ctabs">
+    <button class="tab on" data-c="algo">Console algorítmico</button>
+    <button class="tab" data-c="net">Rede &amp; segurança</button>
+    <button class="tab" data-c="tel">Telemetria &amp; benchmark</button>
+  </div>
+  <div class="cbody">
+    <div class="cpane on" id="c-algo"></div>
+    <div class="cpane log" id="c-net"></div>
+    <div class="cpane" id="c-tel">
+      <div class="cards" id="kpis"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><span style="color:var(--text-secondary)">Benchmark (grafos esparsos, ~4 arestas/vértice):</span><button class="btn" id="runBench">Executar 25→200 V</button></div>
+      <canvas id="chart" height="150" style="width:100%;max-width:900px"></canvas>
+      <div id="benchTable"></div>
+    </div>
+  </div>
+</section>
+<footer>
+  <span>Pesos = custos didáticos relativos de transição (metodologia do estudo), não probabilidades absolutas de incidentes reais.</span>
+  <span style="margin-left:auto" class="mono">Espaço play · → passo · 1/2 abas · R reset</span>
+</footer>
+</div>
+
+<script type="module">
+/* ================= CORE ================= */
+class MinHeap{
+  constructor(){this.a=[];this.pos=new Map()}
+  get size(){return this.a.length}
+  _sw(i,j){const a=this.a;[a[i],a[j]]=[a[j],a[i]];this.pos.set(a[i].k,i);this.pos.set(a[j].k,j)}
+  _up(i){while(i>0){const p=(i-1)>>1;if(this.a[p].d<=this.a[i].d)break;this._sw(i,p);i=p}}
+  _dn(i){const n=this.a.length;for(;;){let m=i,l=2*i+1,r=l+1;if(l<n&&this.a[l].d<this.a[m].d)m=l;if(r<n&&this.a[r].d<this.a[m].d)m=r;if(m===i)break;this._sw(i,m);i=m}}
+  insert(k,d){this.a.push({k,d});this.pos.set(k,this.a.length-1);this._up(this.a.length-1)}
+  decreaseKey(k,d){const i=this.pos.get(k);if(i===undefined)return this.insert(k,d);this.a[i].d=d;this._up(i)}
+  extractMin(){const t=this.a[0],l=this.a.pop();this.pos.delete(t.k);if(this.a.length){this.a[0]=l;this.pos.set(l.k,0);this._dn(0)}return t}
+  snapshot(){return [...this.a].sort((x,y)=>x.d-y.d)}
+}
+class GraphCore{
+  constructor(){this.adj=new Map();this.nodes=[]}
+  addNode(id,meta={}){if(!this.adj.has(id)){this.adj.set(id,[]);this.nodes.push({id,...meta})}}
+  addEdge(u,v,w,label=''){this.addNode(u);this.addNode(v);const e={from:u,to:v,weight:w,baseWeight:w,controlActive:false,label};this.adj.get(u).push(e);return e}
+  edges(){return [...this.adj.values()].flat()}
+  edge(u,v){return (this.adj.get(u)||[]).find(e=>e.to===v)}
+}
+const probToWeight=p=>-Math.log(p);
+
+function* dijkstraGen(G,s,t){
+  const dist=new Map(),prev=new Map(),closed=new Set(),H=new MinHeap();
+  for(const n of G.nodes){dist.set(n.id,Infinity);prev.set(n.id,[])}
+  dist.set(s,0);H.insert(s,0);
+  yield {type:'init',dist,prev,heap:H.snapshot(),closed,msg:`dist[${s}] = 0; Heap ← {${s}:0}`};
+  while(H.size){
+    const {k:u,d}=H.extractMin();
+    if(closed.has(u))continue;
+    closed.add(u);
+    yield {type:'extract',u,dist,prev,heap:H.snapshot(),closed,msg:`extractMin() → ${u} (d=${d})`};
+    if(u===t){yield {type:'stop',u,dist,prev,heap:H.snapshot(),closed,msg:`Destino ${t} extraído: parada antecipada.`};break}
+    for(const e of G.adj.get(u)){
+      if(closed.has(e.to))continue;
+      const nd=d+e.weight,old=dist.get(e.to);let res;
+      if(nd<old-1e-9){dist.set(e.to,nd);prev.set(e.to,[u]);H.decreaseKey(e.to,nd);res='update'}
+      else if(Math.abs(nd-old)<1e-9){prev.get(e.to).push(u);res='tie'}
+      else res='keep';
+      yield {type:'relax',u,v:e.to,e,old,nd,res,dist,prev,heap:H.snapshot(),closed,
+        msg:`${fmt(old)} > ${fmt(d)} + ${fmt(e.weight)} ? ${res==='update'?`sim → atualiza ${e.to} para ${fmt(nd)}`:res==='tie'?`empate (${fmt(nd)}) → novo predecessor`:'não → mantém'}`};
+    }
+  }
+  yield {type:'done',dist,prev,closed,heap:H.snapshot()};
+}
+function* bellmanGen(G,s){
+  const dist=new Map(),prev=new Map(),E=G.edges(),V=G.nodes.length;
+  for(const n of G.nodes){dist.set(n.id,Infinity);prev.set(n.id,[])}dist.set(s,0);
+  yield {type:'init',dist,prev,msg:`dist[${s}]=0; executando |V|-1 = ${V-1} rodadas`};
+  for(let i=1;i<V;i++){
+    let ch=false;
+    for(const e of E){
+      const du=dist.get(e.from);if(du===Infinity)continue;
+      const nd=du+e.weight,old=dist.get(e.to);let res='keep';
+      if(nd<old-1e-9){dist.set(e.to,nd);prev.set(e.to,[e.from]);ch=true;res='update'}
+      else if(Math.abs(nd-old)<1e-9&&!prev.get(e.to).includes(e.from)){prev.get(e.to).push(e.from);res='tie'}
+      yield {type:'relax',round:i,u:e.from,v:e.to,e,res,dist,prev,msg:`[rodada ${i}] ${e.from}→${e.to}: ${fmt(old)} vs ${fmt(du)}+${fmt(e.weight)} = ${fmt(nd)} (${res})`};
+    }
+    if(!ch){yield {type:'info',dist,prev,msg:`Rodada ${i} sem alterações: convergiu.`};break}
+  }
+  let neg=false;for(const e of E){if(dist.get(e.from)+e.weight<dist.get(e.to)-1e-9)neg=true}
+  yield {type:'done',dist,prev,neg,msg:neg?'Rodada |V|: ciclo negativo detectado!':'Rodada |V|: nenhum ciclo negativo.'};
+}
+function floyd(G){
+  const ids=G.nodes.map(n=>n.id),n=ids.length,ix=new Map(ids.map((x,i)=>[x,i]));
+  const D=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?0:Infinity));
+  for(const e of G.edges())D[ix.get(e.from)][ix.get(e.to)]=Math.min(D[ix.get(e.from)][ix.get(e.to)],e.weight);
+  for(let k=0;k<n;k++)for(let i=0;i<n;i++){const dik=D[i][k];if(dik===Infinity)continue;for(let j=0;j<n;j++){const v=dik+D[k][j];if(v<D[i][j])D[i][j]=v}}
+  return {ids,D};
+}
+function dijkstraFast(G,s,t){let last;for(const st of dijkstraGen(G,s,t))last=st;return last}
+function allPaths(prev,s,t){
+  if(t===s)return [[s]];const out=[];
+  for(const p of prev.get(t)||[])for(const path of allPaths(prev,s,p))out.push([...path,t]);
+  return out;
+}
+const fmt=x=>x===Infinity?'∞':(Number.isInteger(x)?String(x):x.toFixed(3));
+
+/* ================= INSTÂNCIA ================= */
+const BASE=[['Internet','VPN',2],['Internet','Estação',6],['VPN','Estação',3],['VPN','AD',5],['Estação','AD',2],['Estação','Servidor',2],['AD','Servidor',3],['AD','Banco',4],['Servidor','Banco',5]];
+const SCEN={
+  A:{n:'A · Linha de base',d:'custo 11 (empate)',w:{}},
+  B:{n:'B · MFA na VPN',d:'Internet→VPN 2→6',w:{'Internet>VPN':6}},
+  C:{n:'C · Controle no BD',d:'AD→Banco 4→8',w:{'AD>Banco':8}},
+  D:{n:'D · B + C',d:'custo 13',w:{'Internet>VPN':6,'AD>Banco':8}},
+  E:{n:'E · Defesa profunda',d:'D + Servidor→Banco 9',w:{'Internet>VPN':6,'AD>Banco':8,'Servidor>Banco':9}},
+};
+let G;let scenario='A';
+function build(){
+  G=new GraphCore();
+  const zones={Internet:'ext',VPN:'edge'};
+  for(const n of ['Internet','VPN','Estação','AD','Servidor','Banco'])G.addNode(n,{zone:zones[n]||'int'});
+  for(const [u,v,w] of BASE)G.addEdge(u,v,w);
+}
+function applyScenario(k){
+  scenario=k;
+  for(const e of G.edges()){const ov=SCEN[k].w[e.from+'>'+e.to];e.weight=ov??e.baseWeight;e.controlActive=ov!==undefined}
+  log('DEFENSE',`Cenário ${SCEN[k].n} aplicado (${SCEN[k].d}).`);
+  document.querySelectorAll('#scenarios .btn').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+  selected=null;renderEditor();resetAlgo();sync3dWeights();
+}
+
+/* ================= UI helpers ================= */
+const $=s=>document.querySelector(s);
+const netLog=$('#c-net');
+function log(tag,msg){
+  const d=document.createElement('div');const t=new Date().toLocaleTimeString('pt-BR');
+  d.innerHTML=`<span style="color:var(--text-muted)">${t}</span> <span class="badge b-${tag}">${tag}</span>${msg}`;
+  netLog.prepend(d);while(netLog.children.length>300)netLog.lastChild.remove();
+}
+for(const [k,s] of Object.entries(SCEN)){
+  const b=document.createElement('button');b.className='btn scen';b.dataset.k=k;b.innerHTML=`${s.n}<small>${s.d}</small>`;
+  b.onclick=()=>applyScenario(k);$('#scenarios').append(b);
+}
+
+/* ================= 2D ================= */
+const cv=$('#v2d'),ctx=cv.getContext('2d');let W=0,H=0,DPR=1;
+let layout='h',selected=null,src='Internet',dst='Banco',gen=null,state=null,playing=false,lastT=0,acc=0,finalRes=null;
+let pos={},anim={};
+function resize(){
+  const r=$('#viewport').getBoundingClientRect();DPR=devicePixelRatio||1;W=r.width;H=r.height;
+  for(const c of [cv]){c.width=W*DPR;c.height=H*DPR}ctx.setTransform(DPR,0,0,DPR,0,0);computeLayout();
+  if(r3)r3.resize(W,H);
+}
+function computeLayout(){
+  const target={};
+  if(layout==='h'){
+    const cols={Internet:0,VPN:1,Estação:1,AD:2,Servidor:2,Banco:3};
+    const rows={Internet:.5,VPN:.28,Estação:.72,AD:.28,Servidor:.72,Banco:.5};
+    const mx=Math.max(80,W*.1),usable=W-mx*2;
+    for(const n of G.nodes)target[n.id]={x:mx+usable*(cols[n.id]??1)/3,y:70+(H-130)*(rows[n.id]??.5)};
+  }else{
+    const cx=W/2,cy=H/2+10,R=Math.min(W,H)*.42;
+    const ring={Banco:[0,0],AD:[.38,-90],Servidor:[.38,90],Estação:[.68,160],VPN:[.68,-160],Internet:[1,180]};
+    for(const n of G.nodes){const [r,a]=ring[n.id]||[.8,0];target[n.id]={x:cx+R*r*Math.cos(a*Math.PI/180)*1.25,y:cy+R*r*Math.sin(a*Math.PI/180)*.85}}
+  }
+  for(const k in target){if(!pos[k])pos[k]={...target[k]};anim[k]=target[k]}
+}
+function edgeGeom(e){
+  const a=pos[e.from],b=pos[e.to];const rev=G.edge(e.to,e.from);
+  const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L;
+  const bend=rev?40:(e.from==='Internet'&&e.to==='Estação'&&layout==='h'?0:12);
+  const c={x:(a.x+b.x)/2+nx*bend,y:(a.y+b.y)/2+ny*bend};
+  return {a,b,c};
+}
+const qpt=(g,t)=>({x:(1-t)**2*g.a.x+2*(1-t)*t*g.c.x+t*t*g.b.x,y:(1-t)**2*g.a.y+2*(1-t)*t*g.c.y+t*t*g.b.y});
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+const C={};function loadColors(){for(const k of ['bg-void','bg-panel','bg-elevated','border-subtle','text-primary','text-secondary','text-muted','color-optimal','color-tie','color-defense','color-algo-scan','color-algo-closed'])C[k]=css('--'+k)}
+loadColors();
+const NR=30;
+function draw2d(now){
+  for(const k in anim){pos[k].x+=(anim[k].x-pos[k].x)*.15;pos[k].y+=(anim[k].y-pos[k].y)*.15}
+  ctx.clearRect(0,0,W,H);ctx.fillStyle=C['bg-void'];ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(51,65,85,.25)';ctx.lineWidth=1;ctx.beginPath();
+  for(let x=0;x<W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H)}for(let y=0;y<H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y)}ctx.stroke();
+  // perimeter
+  const ins=['Estação','AD','Servidor','Banco'].map(k=>pos[k]);
+  let x0=Math.min(...ins.map(p=>p.x))-60,x1=Math.max(...ins.map(p=>p.x))+60,y0=Math.min(...ins.map(p=>p.y))-60,y1=Math.max(...ins.map(p=>p.y))+60;
+  ctx.fillStyle='rgba(16,185,129,.06)';ctx.strokeStyle=C['color-defense'];ctx.setLineDash([8,6]);ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.roundRect(x0,y0,x1-x0,y1-y0,24);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=C['color-defense'];ctx.font='600 11px Inter';ctx.fillText('INTRANET · PERÍMETRO (Firewall)',x0+14,y0+18);
+  // path sets
+  const opt=new Set(),tie=new Set();
+  if(finalRes){finalRes.paths.forEach((p,i)=>{for(let j=0;j<p.length-1;j++)(i===0?opt:tie).add(p[j]+'>'+p[j+1])})}
+  const pulse=.5+.5*Math.sin(now/180);
+  for(const e of G.edges()){
+    const g=edgeGeom(e),key=e.from+'>'+e.to;
+    let col=C['text-muted'],lw=2,dash=[];
+    const cur=state&&state.type==='relax'&&state.u===e.from&&state.v===e.to;
+    if(opt.has(key)){col=C['color-optimal'];lw=4}
+    else if(tie.has(key)){col=C['color-tie'];lw=3.5;dash=[10,6]}
+    else if(cur){col=C['color-algo-scan'];lw=3+2*pulse}
+    else if(state&&state.closed&&state.closed.has(e.from))col='#4b5a7a';
+    if(selected===e){ctx.shadowColor=C['color-algo-scan'];ctx.shadowBlur=14}
+    ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(dash);ctx.lineDashOffset=-now/40;
+    ctx.beginPath();ctx.moveTo(g.a.x,g.a.y);ctx.quadraticCurveTo(g.c.x,g.c.y,g.b.x,g.b.y);ctx.stroke();ctx.setLineDash([]);ctx.shadowBlur=0;
+    // arrow: find t where distance to b == NR+4
+    let t=.98;for(;t>.5;t-=.005){const p=qpt(g,t);if(Math.hypot(p.x-g.b.x,p.y-g.b.y)>NR+3)break}
+    const p=qpt(g,t),p2=qpt(g,t-.02),ang=Math.atan2(p.y-p2.y,p.x-p2.x);
+    ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-13*Math.cos(ang-.4),p.y-13*Math.sin(ang-.4));ctx.lineTo(p.x-13*Math.cos(ang+.4),p.y-13*Math.sin(ang+.4));ctx.fill();
+    // weight pill
+    const m=qpt(g,.5);const txt=$('#prob').checked?`p=${Math.exp(-e.weight).toFixed(3)}`:(e.controlActive?`${e.baseWeight}→${e.weight}`:String(e.weight));
+    ctx.font='600 12px JetBrains Mono';const tw=ctx.measureText(txt).width+14;
+    ctx.fillStyle=C['bg-panel'];ctx.strokeStyle=e.controlActive?C['color-defense']:(cur?C['color-algo-scan']:C['border-subtle']);ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(m.x-tw/2,m.y-11,tw,22,11);ctx.fill();ctx.stroke();
+    ctx.fillStyle=e.controlActive?C['color-defense']:C['text-primary'];ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,m.x,m.y+1);
+    e._mid=m;
+  }
+  // relax math label
+  if(state&&state.type==='relax'&&state.e){
+    const m=state.e._mid;if(m){const t=state.msg;ctx.font='12px JetBrains Mono';const tw=ctx.measureText(t).width+16;
+      ctx.fillStyle='rgba(12,42,58,.95)';ctx.strokeStyle=C['color-algo-scan'];ctx.beginPath();ctx.roundRect(m.x-tw/2,m.y-42,tw,22,6);ctx.fill();ctx.stroke();
+      ctx.fillStyle=C['color-algo-scan'];ctx.fillText(t,m.x,m.y-31)}
+  }
+  // nodes
+  const icons={Internet:'🌐',VPN:'🔐',Estação:'💻',AD:'🗂️',Servidor:'🖥️',Banco:'🛢️'};
+  for(const n of G.nodes){
+    const p=pos[n.id];let ring=C['border-subtle'],fill=C['bg-elevated'],glow=0;
+    if(state&&state.closed&&state.closed.has(n.id)){ring=C['color-algo-closed'];fill='#1e1b4b'}
+    if(state&&(state.type==='extract'||state.type==='stop')&&state.u===n.id){ring=C['color-algo-scan'];glow=20+10*pulse}
+    if(finalRes&&finalRes.paths[0]&&finalRes.paths.some(pp=>pp.includes(n.id))){ring=C['color-optimal']}
+    if(n.id===src||n.id===dst)ring=finalRes?C['color-optimal']:ring;
+    ctx.shadowColor=ring;ctx.shadowBlur=glow;ctx.fillStyle=fill;ctx.strokeStyle=ring;ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(p.x,p.y,NR,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+    ctx.font='20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(icons[n.id]||'●',p.x,p.y+1);
+    ctx.font='600 12px Inter';ctx.fillStyle=C['text-primary'];ctx.fillText(n.id,p.x,p.y+NR+13);
+    const d=state&&state.dist?state.dist.get(n.id):undefined;
+    if(d!==undefined){ctx.font='600 11px JetBrains Mono';ctx.fillStyle=d===Infinity?C['text-muted']:C['color-algo-scan'];ctx.fillText('d='+fmt(d),p.x,p.y-NR-10)}
+  }
+}
+
+/* ======= algorithm control ======= */
+function resetAlgo(){
+  const a=$('#algo').value;finalRes=null;state=null;
+  gen=a==='dijkstra'?dijkstraGen(G,src,dst):a==='bellman'?bellmanGen(G,src):null;
+  if(a==='floyd'){runFloyd();return}
+  stepAlgo();renderAlgoConsole();updateOverlay();
+}
+function finish(st){
+  const paths=allPaths(st.prev,src,dst);const cost=st.dist.get(dst);
+  finalRes={cost,paths,closed:st.closed?st.closed.size:null};
+  log('ROUTE',`Custo mínimo ${src}→${dst} = <b>${fmt(cost)}</b>${$('#prob').checked?` (p conjunta = ${Math.exp(-cost).toFixed(4)})`:''} · ${paths.length} rota(s): ${paths.map(p=>p.join(' → ')).join(' | ')}`);
+  if(paths.length>1)log('ALERT',`Empate de custo mínimo: ${paths.length} rotas equivalentes. Uma defesa pontual não bloqueia todas.`);
+  if(st.closed)log('INFO',`Parada antecipada: ${st.closed.size}/${G.nodes.length} vértices fechados (${Math.round(st.closed.size/G.nodes.length*100)}%).`);
+  if(st.neg)log('ALERT','Ciclo negativo detectado.');
+  playing=false;$('#bPlay').textContent='▶ Play';updateKPIs();
+}
+function stepAlgo(){
+  if(!gen)return false;const r=gen.next();if(r.done){gen=null;return false}
+  state=r.value;
+  if(state.msg&&state.type!=='init')log('ALGO',state.msg);
+  if(state.type==='done'){finish(state);gen=null}
+  renderAlgoConsole();updateOverlay();return true;
+}
+function runAll(){if(!gen)resetAlgo();while(gen&&stepAlgo());}
+function runFloyd(){
+  const t0=performance.now();const {ids,D}=floyd(G);const ms=performance.now()-t0;
+  state=null;const d=dijkstraFast(G,src,dst);finish(d);state={dist:new Map(ids.map((x,i)=>[x,D[ids.indexOf(src)][i]]))};
+  let h=`<div style="color:var(--text-secondary)">Floyd-Warshall · matriz todos-para-todos · O(V³) tempo, O(V²) espaço · ${ms.toFixed(3)} ms</div><table class="t"><tr><th></th>${ids.map(i=>`<th>${i}</th>`).join('')}</tr>`;
+  for(let i=0;i<ids.length;i++)h+=`<tr><th>${ids[i]}</th>${D[i].map((v,j)=>`<td style="${ids[i]===src&&ids[j]===dst?'color:var(--color-optimal);font-weight:600':''}">${fmt(v)}</td>`).join('')}</tr>`;
+  $('#c-algo').innerHTML=h+'</table>';updateOverlay();
+}
+function renderAlgoConsole(){
+  if(!state||$('#algo').value==='floyd')return;
+  const ids=G.nodes.map(n=>n.id);
+  let h=`<div style="color:var(--text-secondary)">${state.msg||''}</div><table class="t"><tr><th></th>${ids.map(i=>`<th>${i}</th>`).join('')}</tr>`;
+  h+=`<tr><th>dist[]</th>${ids.map(i=>`<td style="color:${state.v===i?'var(--color-algo-scan)':'inherit'}">${fmt(state.dist.get(i))}</td>`).join('')}</tr>`;
+  h+=`<tr><th>prev[]</th>${ids.map(i=>`<td>${(state.prev.get(i)||[]).join(', ')||'—'}</td>`).join('')}</tr>`;
+  if(state.closed)h+=`<tr><th>fechado</th>${ids.map(i=>`<td style="color:var(--color-algo-closed)">${state.closed.has(i)?'✔':''}</td>`).join('')}</tr>`;
+  h+='</table>';
+  if(state.heap)h+=`<div>Min-Heap: [ ${state.heap.map(x=>`<span style="color:var(--color-algo-scan)">${x.k}:${fmt(x.d)}</span>`).join(', ')||'vazio'} ]</div>`;
+  if(state.closed)h+=`<div>Vértices fechados: ${state.closed.size}/${ids.length} (${Math.round(state.closed.size/ids.length*100)}%)</div>`;
+  $('#c-algo').innerHTML=h;
+}
+function updateOverlay(){
+  const a={dijkstra:'Dijkstra · O((V+E) log V)',bellman:'Bellman-Ford · O(V·E)',floyd:'Floyd-Warshall · O(V³)'}[$('#algo').value];
+  $('#overlay').innerHTML=`<div>${a}</div><div class="big">Cenário ${SCEN[scenario].n}</div>`+
+   (finalRes?`<div>Custo mínimo ${src}→${dst}: <b style="color:var(--color-optimal)">${fmt(finalRes.cost)}</b> · ${finalRes.paths.length} rota(s)</div>${finalRes.paths.map((p,i)=>`<div style="color:${i?'var(--color-tie)':'var(--color-optimal)'}">${p.join(' → ')}</div>`).join('')}`:'<div>Use Passo (→) ou Play para executar.</div>');
+}
+function updateKPIs(){
+  const t=bench1(G,src,dst);
+  $('#kpis').innerHTML=[['Custo mínimo',fmt(finalRes?.cost??'—')],['Rotas empatadas',finalRes?.paths.length??'—'],['Vértices fechados',finalRes?.closed!=null?`${finalRes.closed}/${G.nodes.length}`:'—'],['Tempo D / BF / FW (µs)',`${t.map(x=>(x*1000).toFixed(0)).join(' / ')}`]]
+   .map(([k,v])=>`<div class="kpi"><span>${k}</span><b class="mono">${v}</b></div>`).join('');
+}
+function bench1(g,s,t,reps=200){
+  const time=f=>{const t0=performance.now();for(let i=0;i<reps;i++)f();return (performance.now()-t0)/reps};
+  return [time(()=>dijkstraFast(g,s,t)),time(()=>{for(const _ of bellmanGen(g,s));}),time(()=>floyd(g))];
+}
+
+/* ======= edge editor ======= */
+function renderEditor(){
+  const el=$('#edgeEditor');
+  if(!selected){el.innerHTML='<span style="color:var(--text-muted)">Clique numa aresta no 2D para editar.</span>';return}
+  const e=selected;
+  el.innerHTML=`<div class="mono" style="font-size:14px">${e.from} → ${e.to}</div>
+   <label class="row">Peso atual <b class="mono" id="ewv">${e.weight}</b></label>
+   <input type="range" min="1" max="20" value="${e.weight}" id="ew">
+   <label class="row">Aplicar controle de segurança (+4) <input type="checkbox" id="ec" ${e.controlActive?'checked':''}></label>
+   <div style="color:var(--text-muted);font-size:11px">Peso base: ${e.baseWeight}${$('#prob').checked?` · p = e^-w = ${Math.exp(-e.weight).toFixed(3)}`:''}</div>`;
+  $('#ew').oninput=ev=>{e.weight=+ev.target.value;e.controlActive=e.weight!==e.baseWeight;$('#ewv').textContent=e.weight;$('#ec').checked=e.controlActive};
+  $('#ew').onchange=()=>{log('DEFENSE',`Peso ${e.from}→${e.to} ajustado para ${e.weight}.`);resetAlgo();runAll();sync3dWeights()};
+  $('#ec').onchange=ev=>{e.weight=ev.target.checked?e.baseWeight+4:e.baseWeight;e.controlActive=ev.target.checked;
+    log('DEFENSE',`Controle ${ev.target.checked?'ativado':'removido'} em ${e.from}→${e.to} (w=${e.weight}).`);renderEditor();resetAlgo();runAll();sync3dWeights()};
+}
+cv.addEventListener('click',ev=>{
+  const r=cv.getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;let best=null,bd=18;
+  for(const e of G.edges()){const g=edgeGeom(e);for(let t=0;t<=1;t+=.02){const p=qpt(g,t);const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=e}}}
+  selected=best;renderEditor();
+});
+// drag nodes
+let drag=null;
+cv.addEventListener('mousedown',ev=>{const r=cv.getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;for(const n of G.nodes){if(Math.hypot(pos[n.id].x-x,pos[n.id].y-y)<NR)drag=n.id}});
+addEventListener('mousemove',ev=>{if(!drag)return;const r=cv.getBoundingClientRect();anim[drag]=pos[drag]={x:ev.clientX-r.left,y:ev.clientY-r.top}});
+addEventListener('mouseup',()=>drag=null);
+
+/* ======= controls ======= */
+function togglePlay(){if(view==='3d'){sim.paused=!sim.paused;return}if(!gen&&!finalRes)resetAlgo();if(!gen){resetAlgo()}playing=!playing;$('#bPlay').textContent=playing?'⏸ Pause':'▶ Play'}
+$('#bPlay').onclick=togglePlay;
+$('#bStep').onclick=()=>{if(!gen)resetAlgo();else stepAlgo()};
+$('#bReset').onclick=()=>{if(view==='3d'){r3&&r3.resetCam();return}playing=false;$('#bPlay').textContent='▶ Play';resetAlgo()};
+$('#bRun').onclick=()=>{resetAlgo();runAll()};
+$('#speed').oninput=e=>$('#speedV').textContent=(+e.target.value).toFixed(1)+'x';
+$('#algo').onchange=()=>{resetAlgo();if($('#algo').value==='floyd')updateKPIs()};
+$('#layout').onchange=e=>{layout=e.target.value;computeLayout()};
+$('#prob').onchange=()=>{renderEditor();log('INFO',$('#prob').checked?'Modo probabilístico: w = -ln(p). Minimizar Σw ≡ maximizar Πp.':'Modo de custo aditivo.')};
+document.querySelectorAll('.ctabs .tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ctabs .tab').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.cpane').forEach(p=>p.classList.toggle('on',p.id==='c-'+b.dataset.c));if(b.dataset.c==='tel')drawChart()});
+addEventListener('keydown',e=>{if(['INPUT','SELECT'].includes(e.target.tagName)&&e.target.type!=='range'&&e.target.type!=='checkbox')return;
+  if(e.code==='Space'){e.preventDefault();togglePlay()}else if(e.code==='ArrowRight'&&view==='2d'){e.preventDefault();$('#bStep').click()}
+  else if(e.key==='1')setView('2d');else if(e.key==='2')setView('3d');else if(e.key==='r'||e.key==='R')$('#bReset').click()});
+
+/* ======= benchmark ======= */
+let benchData=null;
+function randomGraph(n,deg=4,seed=1){
+  let s=seed;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+  const g=new GraphCore();for(let i=0;i<n;i++)g.addNode('v'+i);
+  for(let i=0;i<n-1;i++)g.addEdge('v'+i,'v'+(i+1),1+Math.floor(rnd()*10));
+  for(let k=0;k<n*(deg-1);k++){const a=Math.floor(rnd()*n),b=Math.floor(rnd()*n);if(a!==b&&!g.edge('v'+a,'v'+b))g.addEdge('v'+a,'v'+b,1+Math.floor(rnd()*10))}
+  return g;
+}
+$('#runBench').onclick=()=>{
+  benchData=[];
+  for(const n of [25,50,100,150,200]){
+    const g=randomGraph(n,4,n*7);const reps=n>100?3:10;const t=bench1(g,'v0','v'+(n-1),reps);
+    const st=dijkstraFast(g,'v0','v'+(n-1));benchData.push({n,e:g.edges().length,t,closed:st.closed.size});
+  }
+  $('#benchTable').innerHTML=`<table class="t"><tr><th>V</th><th>E</th><th>Dijkstra (ms)</th><th>Bellman-Ford (ms)</th><th>Floyd-Warshall (ms)</th><th>Fechados (parada antecipada)</th></tr>${benchData.map(r=>`<tr><td>${r.n}</td><td>${r.e}</td>${r.t.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}<td>${r.closed} (${Math.round(r.closed/r.n*100)}%)</td></tr>`).join('')}</table>`;
+  log('INFO','Benchmark concluído para 25–200 vértices.');drawChart();
+};
+function drawChart(){
+  const c=$('#chart'),x=c.getContext('2d'),w=c.clientWidth,h=150;c.width=w*DPR;c.height=h*DPR;x.setTransform(DPR,0,0,DPR,0,0);
+  x.clearRect(0,0,w,h);if(!benchData){x.fillStyle=C['text-muted'];x.font='12px Inter';x.fillText('Execute o benchmark para ver o gráfico (escala logarítmica).',10,20);return}
+  const cols=[C['color-optimal'],C['color-tie'],C['color-algo-closed']],names=['Dijkstra','Bellman-Ford','Floyd-Warshall'];
+  const all=benchData.flatMap(r=>r.t).map(v=>Math.max(v,1e-4));const lo=Math.log10(Math.min(...all)),hi=Math.log10(Math.max(...all));
+  const px=i=>50+(w-70)*i/(benchData.length-1),py=v=>h-22-(h-40)*(Math.log10(Math.max(v,1e-4))-lo)/((hi-lo)||1);
+  x.strokeStyle=C['border-subtle'];x.beginPath();x.moveTo(50,10);x.lineTo(50,h-22);x.lineTo(w-20,h-22);x.stroke();
+  x.fillStyle=C['text-secondary'];x.font='11px JetBrains Mono';benchData.forEach((r,i)=>x.fillText('V='+r.n,px(i)-16,h-6));
+  x.fillText('ms (log)',4,14);
+  for(let a=0;a<3;a++){x.strokeStyle=cols[a];x.lineWidth=2;x.beginPath();benchData.forEach((r,i)=>{i?x.lineTo(px(i),py(r.t[a])):x.moveTo(px(i),py(r.t[a]))});x.stroke();
+    x.fillStyle=cols[a];x.fillText(names[a],w-150,18+a*14)}
+}
+
+/* ================= 3D ================= */
+let view='2d',r3=null;const sim={paused:false};
+function setView(v){
+  view=v;document.querySelectorAll('header .tab').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  $('#v2d').style.display=v==='2d'?'block':'none';$('#v3d').style.display=v==='3d'?'block':'none';
+  $('#p2d').classList.toggle('hidden',v!=='2d');$('#p3d').classList.toggle('hidden',v!=='3d');
+  $('#legend2d').classList.toggle('hidden',v!=='2d');$('#legend3d').classList.toggle('hidden',v!=='3d');
+  $('#bStep').classList.toggle('hidden',v!=='2d');$('#bRun').classList.toggle('hidden',v!=='2d');
+  if(v==='3d'){if(!r3)init3d();else updateOverlay3d()}else updateOverlay();
+}
+document.querySelectorAll('header .tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+
+/* 3D topology: islands */
+let G3,pos3={},sync3dWeights=()=>{};
+function build3dTopology(){
+  G3=new GraphCore();const P=(id,x,y,z,zone,kind)=>{G3.addNode(id,{zone,kind});pos3[id]={x,y,z}};
+  // Internet cloud
+  const ext=[['Usuário-1','user'],['Usuário-2','user'],['Usuário-3','user'],['Parceiro','user'],['Atacante-1','threat'],['Atacante-2','threat'],['Botnet','threat']];
+  ext.forEach(([n,k],i)=>{const a=i/ext.length*Math.PI*2;P(n,-150+40*Math.cos(a),30*Math.sin(a*2),60*Math.sin(a),'ext',k)});
+  P('Internet',-90,0,0,'ext','core');
+  // Island 1 (intranet) center (60,0,-40)
+  P('VPN',-20,10,-40,'edge','gw');P('Estação',40,-25,-50,'i1','host');P('AD',75,30,-30,'i1','host');P('Servidor',90,-20,-70,'i1','host');P('Banco',130,5,-45,'i1','target');P('RH-App',60,0,-90,'i1','host');
+  // Island 2 (cloud)
+  P('LoadBalancer',-10,-10,60,'edge','gw');P('WebApp',50,-20,70,'i2','host');P('API',80,20,55,'i2','host');P('S3',120,-10,85,'i2','target');P('Auth',70,-40,40,'i2','host');
+  const E=[['Internet','VPN',2],['Internet','Estação',6],['VPN','Estação',3],['VPN','AD',5],['Estação','AD',2],['Estação','Servidor',2],['AD','Servidor',3],['AD','Banco',4],['Servidor','Banco',5],['Estação','RH-App',3],['RH-App','Banco',6],['AD','RH-App',2],
+    ['Internet','LoadBalancer',1],['LoadBalancer','WebApp',2],['WebApp','API',2],['API','S3',3],['WebApp','Auth',2],['Auth','API',1],['API','Servidor',7],['LoadBalancer','Auth',3]];
+  for(const [u,v,w] of E)G3.addEdge(u,v,w);
+  for(const n of ext)G3.addEdge(n[0],'Internet',1);
+}
+async function init3d(){
+  let THREE,OrbitControls;
+  try{THREE=await import('three');({OrbitControls}=await import('three/addons/controls/OrbitControls.js'))}
+  catch(err){$('#overlay').innerHTML='<div class="big">Falha ao carregar Three.js (CDN).</div><div>Verifique a conexão. A aba 2D funciona offline.</div>';return}
+  build3dTopology();
+  const canvas=$('#v3d');const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(devicePixelRatio);renderer.setSize(W,H,false);
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0x090D16);scene.fog=new THREE.FogExp2(0x090D16,.0022);
+  const cam=new THREE.PerspectiveCamera(55,W/H,1,3000);cam.position.set(0,140,320);
+  const ctl=new OrbitControls(cam,canvas);ctl.enableDamping=true;ctl.autoRotate=true;ctl.autoRotateSpeed=.6;
+  scene.add(new THREE.AmbientLight(0x8899bb,.7));const dl=new THREE.PointLight(0xffffff,1.2,0,0);dl.position.set(0,200,200);scene.add(dl);
+  const grid=new THREE.GridHelper(600,30,0x1E293B,0x111827);grid.position.y=-80;scene.add(grid);
+  const colOf={user:0x10B981,threat:0xF43F5E,core:0x94A3B8,gw:0x38BDF8,host:0x818CF8,target:0xFB923C};
+  const nodeMesh={};const labels=[];
+  const mkLabel=(text)=>{const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.font='600 28px Inter';x.fillStyle='#F8FAFC';x.textAlign='center';x.fillText(text,128,40);
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthWrite:false,transparent:true}));s.scale.set(40,10,1);return s};
+  for(const n of G3.nodes){
+    const p=pos3[n.id];const geo=n.kind==='gw'?new THREE.OctahedronGeometry(8):n.kind==='target'?new THREE.CylinderGeometry(6,6,12,20):new THREE.SphereGeometry(n.kind==='core'?9:6,24,16);
+    const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:colOf[n.kind],emissive:colOf[n.kind],emissiveIntensity:.35,roughness:.4}));
+    m.position.set(p.x,p.y,p.z);scene.add(m);nodeMesh[n.id]=m;const l=mkLabel(n.id);l.position.set(p.x,p.y+14,p.z);scene.add(l);labels.push(l);
+  }
+  // islands domes
+  const domes=[];
+  const dome=(cx,cy,cz,r,color)=>{const g=new THREE.IcosahedronGeometry(r,2);
+    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color,transparent:true,opacity:.05,depthWrite:false}));
+    const w=new THREE.LineSegments(new THREE.WireframeGeometry(g),new THREE.LineBasicMaterial({color,transparent:true,opacity:.18}));
+    m.position.set(cx,cy,cz);w.position.copy(m.position);scene.add(m,w);domes.push(m,w)};
+  dome(80,0,-55,80,0x10B981);dome(70,-10,62,72,0x38BDF8);
+  const cloud=new THREE.Mesh(new THREE.SphereGeometry(85,24,16),new THREE.MeshBasicMaterial({color:0x94A3B8,transparent:true,opacity:.03,depthWrite:false}));cloud.position.set(-140,0,0);scene.add(cloud);
+  // edges as curves
+  const edgeObj=new Map();
+  for(const e of G3.edges()){
+    const a=pos3[e.from],b=pos3[e.to];const va=new THREE.Vector3(a.x,a.y,a.z),vb=new THREE.Vector3(b.x,b.y,b.z);
+    const mid=va.clone().add(vb).multiplyScalar(.5);mid.y+=va.distanceTo(vb)*.18;
+    const curve=new THREE.QuadraticBezierCurve3(va,mid,vb);
+    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(30)),new THREE.LineBasicMaterial({color:0x334155,transparent:true,opacity:.8}));
+    scene.add(line);edgeObj.set(e,{curve,line});
+  }
+  sync3dWeights=()=>{
+    for(const e3 of G3.edges()){const e2=G.edge(e3.from,e3.to);if(e2){e3.weight=e2.weight;e3.controlActive=e2.controlActive}
+      const o=edgeObj.get(e3);o.line.material.color.set(e3.controlActive?0x10B981:0x334155)}
+    renderDef3d();
+  };
+  // defenses list
+  function renderDef3d(){
+    const el=$('#def3d');el.innerHTML='';
+    for(const e of G3.edges().filter(e=>!e.from.startsWith('Usu')&&!e.from.startsWith('Ata')&&e.from!=='Botnet'&&e.from!=='Parceiro')){
+      const l=document.createElement('label');l.className='row';l.innerHTML=`<span class="mono" style="font-size:11px">${e.from}→${e.to} <b style="color:${e.controlActive?'var(--color-defense)':'var(--text-primary)'}">w=${e.weight}</b></span>`;
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=e.controlActive;
+      cb.onchange=()=>{e.weight=cb.checked?e.baseWeight+4:e.baseWeight;e.controlActive=cb.checked;const e2=G.edge(e.from,e.to);if(e2){e2.weight=e.weight;e2.controlActive=e.controlActive;resetAlgo()}
+        edgeObj.get(e).line.material.color.set(cb.checked?0x10B981:0x334155);log('DEFENSE',`[3D] Controle ${cb.checked?'ativo':'removido'} em ${e.from}→${e.to} (w=${e.weight}). Novas requisições recalculam rota.`);renderDef3d()};
+      l.append(cb);el.append(l)}
+  }
+  sync3dWeights();
+  // agents
+  const agents=[];const pgeo=new THREE.SphereGeometry(2.4,10,8);
+  const users=['Usuário-1','Usuário-2','Usuário-3','Parceiro'],threats=['Atacante-1','Atacante-2','Botnet'];
+  const legitT=['WebApp','API','Estação','AD','RH-App'],atkT=['Banco','S3','Servidor','AD'];
+  let aid=0;
+  function spawn(){
+    const atk=Math.random()<.45;const s=(atk?threats:users)[Math.floor(Math.random()*(atk?3:4))];const t=(atk?atkT:legitT)[Math.floor(Math.random()*(atk?4:5))];
+    const st=dijkstraFast(G3,s,t);if(st.dist.get(t)===Infinity)return;
+    const paths=allPaths(st.prev,s,t);const path=paths[Math.floor(Math.random()*paths.length)];
+    const m=new THREE.Mesh(pgeo,new THREE.MeshBasicMaterial({color:atk?0xF43F5E:0x10B981}));scene.add(m);
+    const id=String(++aid).padStart(2,'0');
+    const a={id,atk,path,seg:0,t:0,m,cost:st.dist.get(t)};agents.push(a);
+    if(atk||Math.random()<.2)log(atk?'ALERT':'INFO',`[AGENT-${id} | ${atk?'ATTACK':'LEGIT'}] ${s} → ${t} via ${path.slice(1).join(' → ')} (custo ${a.cost})`);
+  }
+  function recalcFrom(a){
+    const cur=a.path[a.seg],t=a.path.at(-1);const st=dijkstraFast(G3,cur,t);const np=allPaths(st.prev,cur,t)[0];
+    if(np&&np.join()!==a.path.slice(a.seg).join()){log('ROUTE',`[AGENT-${a.id} | ${a.atk?'ATTACK':'LEGIT'}] Custo elevado à frente. Recalculando em ${cur}: ${np.join(' → ')}`);a.path=[...a.path.slice(0,a.seg),...np]}
+  }
+  // benchmark 3D
+  let benchGroup=null;
+  [25,50,100,150,200].forEach(n=>{const b=document.createElement('button');b.className='btn';b.textContent=n+' vértices';b.onclick=()=>showBench(n);$('#bench3d').append(b)});
+  function showBench(n){
+    if(benchGroup)scene.remove(benchGroup);benchGroup=new THREE.Group();
+    const g=randomGraph(n,4,n*7);const t0=performance.now();const st=dijkstraFast(g,'v0','v'+(n-1));const ms=performance.now()-t0;
+    const path=new Set(allPaths(st.prev,'v0','v'+(n-1))[0]);const P={};
+    g.nodes.forEach((v,i)=>{const phi=Math.acos(1-2*(i+.5)/n),th=Math.PI*(1+Math.sqrt(5))*i;const R=150;P[v.id]=new THREE.Vector3(R*Math.sin(phi)*Math.cos(th),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(th))});
+    const pts=[];for(const e of g.edges())pts.push(P[e.from],P[e.to]);
+    benchGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x334155,transparent:true,opacity:.35})));
+    const sg=new THREE.SphereGeometry(3,10,8);
+    for(const v of g.nodes){const c=path.has(v.id)?0xF43F5E:st.closed.has(v.id)?0x818CF8:0x334155;const m=new THREE.Mesh(sg,new THREE.MeshBasicMaterial({color:c}));m.position.copy(P[v.id]);benchGroup.add(m)}
+    const pp=[...path].map(k=>P[k]);benchGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pp),new THREE.LineBasicMaterial({color:0xF43F5E})));
+    scene.add(benchGroup);setIslands(false);
+    $('#overlay').innerHTML=`<div class="big">Benchmark · V=${n}, E=${g.edges().length}</div><div>Dijkstra ${ms.toFixed(3)} ms · custo ${st.dist.get('v'+(n-1))}</div><div><span style="color:var(--color-algo-closed)">Fechados</span>: ${st.closed.size}/${n} (${Math.round(st.closed.size/n*100)}%) · <span style="color:var(--text-muted)">intactos</span>: ${n-st.closed.size}</div>`;
+    log('INFO',`[3D] Benchmark V=${n}: parada antecipada fechou ${Math.round(st.closed.size/n*100)}% dos vértices.`);
+  }
+  function setIslands(on){for(const m of Object.values(nodeMesh))m.visible=on;labels.forEach(l=>l.visible=on);for(const o of edgeObj.values())o.line.visible=on;domes.forEach(d=>d.visible=on&&$('#fFw').checked);cloud.visible=on;agents.forEach(a=>a.m.visible=on);sim.islands=on}
+  sim.islands=true;
+  $('#back3d').onclick=()=>{if(benchGroup)scene.remove(benchGroup);benchGroup=null;setIslands(true);updateOverlay3d()};
+  $('#fFw').onchange=e=>domes.forEach(d=>d.visible=e.target.checked&&sim.islands);
+  $('#fRot').onchange=e=>ctl.autoRotate=e.target.checked;
+  $('#rate').oninput=e=>$('#rateV').textContent=e.target.value;
+  let clock=performance.now(),spawnAcc=0;
+  r3={resize:(w,h)=>{renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()},resetCam:()=>{cam.position.set(0,140,320);ctl.target.set(0,0,0)}};
+  function loop(now){
+    requestAnimationFrame(loop);const dt=Math.min(.05,(now-clock)/1000);clock=now;
+    if(view!=='3d')return;
+    ctl.update();
+    if(!sim.paused&&sim.islands){
+      const target=+$('#rate').value;spawnAcc+=dt;if(agents.length<target&&spawnAcc>.15){spawnAcc=0;spawn()}
+      const k=60*(+$('#speed').value);
+      for(let i=agents.length-1;i>=0;i--){
+        const a=agents[i];const u=a.path[a.seg],v=a.path[a.seg+1];
+        if(!v){scene.remove(a.m);agents.splice(i,1);continue}
+        const e=G3.edge(u,v);const o=edgeObj.get(e);const len=o.curve.getLength();
+        a.t+=(k/e.weight)*dt/len*3; // velocidade = k / w
+        if(a.t>=1){a.t=0;a.seg++;if(a.path[a.seg+1])recalcFrom(a);continue}
+        a.m.position.copy(o.curve.getPoint(a.t));
+        a.m.visible=a.atk?$('#fAtk').checked:$('#fLeg').checked;
+      }
+      for(const id in nodeMesh)nodeMesh[id].rotation.y+=dt*.6;
+    }
+    renderer.render(scene,cam);
+  }
+  requestAnimationFrame(loop);updateOverlay3d();
+  log('INFO','[3D] Ecossistema iniciado: Internet + Ilha 1 (Intranet) + Ilha 2 (Cloud). Partículas: velocidade = k / w.');
+}
+function updateOverlay3d(){$('#overlay').innerHTML=`<div class="big">Ecossistema concorrente</div><div>Ilha verde: Intranet (VPN) · Ilha azul: Cloud (Load Balancer)</div><div>Velocidade da partícula ∝ 1/w · arraste para orbitar</div>`}
+
+/* ================= main loop ================= */
+function frame(now){
+  requestAnimationFrame(frame);
+  if(view!=='2d')return;
+  if(playing){acc+=(now-lastT)*(+$('#speed').value);if(acc>700){acc=0;if(!stepAlgo()){playing=false;$('#bPlay').textContent='▶ Play'}}}
+  lastT=now;draw2d(now);
+}
+build();
+for(const n of G.nodes){$('#src').add(new Option(n.id,n.id));$('#dst').add(new Option(n.id,n.id))}
+$('#src').value=src;$('#dst').value=dst;
+$('#src').onchange=e=>{src=e.target.value;resetAlgo()};$('#dst').onchange=e=>{dst=e.target.value;resetAlgo()};
+addEventListener('resize',resize);resize();
+applyScenario('A');runAll();updateKPIs();
+log('INFO','CyberGraph Engine pronto. Grafo G=(V,E) direcionado e ponderado com 6 vértices e 9 arestas.');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
