@@ -5,12 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CyberGraph Engine</title>
 <meta name="description" content="Teoria dos Grafos aplicada à Segurança da Informação: Dijkstra, Bellman-Ford e Floyd-Warshall em caminhos de ataque, com laboratório 2D passo a passo e ecossistema 3D concorrente.">
+<meta name="theme-color" content="#111827">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23090D16'/%3E%3Cpath d='M8 22 16 9l8 13' fill='none' stroke='%2338BDF8' stroke-width='2.5'/%3E%3Ccircle cx='8' cy='22' r='3.5' fill='%2310B981'/%3E%3Ccircle cx='16' cy='9' r='3.5' fill='%23818CF8'/%3E%3Ccircle cx='24' cy='22' r='3.5' fill='%23F43F5E'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CyberGraph Engine — grafos aplicados à segurança">
+<meta property="og:description" content="Dijkstra, Bellman-Ford e Floyd-Warshall em caminhos de ataque: laboratório 2D passo a passo, matrizes, cenários de defesa A–E e ecossistema 3D concorrente.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"CyberGraph Engine","applicationCategory":"EducationalApplication","inLanguage":"pt-BR","operatingSystem":"Web","description":"Simulador didático de caminhos de ataque mínimos com Dijkstra, Bellman-Ford e Floyd-Warshall."}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg-void:#090D16;--bg-panel:#111827;--bg-elevated:#1E293B;--border-subtle:#334155;
-  --text-primary:#F8FAFC;--text-secondary:#94A3B8;--text-muted:#64748B;
+  --text-primary:#F8FAFC;--text-secondary:#A3B1C6;--text-muted:#8391A7;--on-accent:#FFFFFF;
+  --color-optimal-strong:#BE123C;--scan-bg:#0C2A3A;--overlay-bg:rgba(17,24,39,.88);--focus-ring:#38BDF8;
   --color-optimal:#F43F5E;--color-tie:#FB923C;--color-defense:#10B981;
   --color-algo-scan:#38BDF8;--color-algo-closed:#818CF8;--color-island:rgba(16,185,129,.08);
   --mono:'JetBrains Mono','Fira Code',monospace;--sans:'Inter',system-ui,-apple-system,sans-serif;
@@ -18,24 +26,29 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg-void);color:var(--text-primary);font:13px/1.45 var(--sans)}
 button{font:inherit;color:inherit;cursor:pointer}
-.app{display:grid;height:100vh;grid-template-columns:1fr 320px;grid-template-rows:44px 1fr 240px 26px;
+.app{display:grid;height:100vh;grid-template-columns:1fr 320px;grid-template-rows:44px 1fr 300px 26px;
   grid-template-areas:"top top" "view side" "cons side" "foot foot"}
 header{grid-area:top;display:flex;align-items:center;gap:16px;padding:0 14px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle)}
-.logo{font-weight:700;letter-spacing:.3px}.logo b{color:var(--color-optimal)}
+.logo{font-size:15px;font-weight:700;white-space:nowrap;letter-spacing:.3px}.logo b{color:var(--color-optimal)}
 .tabs{display:flex;gap:2px}
-.tab{background:var(--bg-elevated);border:1px solid var(--border-subtle);padding:5px 14px;border-radius:6px 6px 0 0;color:var(--text-secondary)}
+.tab{white-space:nowrap;background:var(--bg-elevated);border:1px solid var(--border-subtle);padding:5px 14px;border-radius:6px 6px 0 0;color:var(--text-secondary)}
 .tab.on{background:var(--bg-void);color:var(--text-primary);border-bottom-color:var(--bg-void)}
 .transport{margin-left:auto;display:flex;gap:6px;align-items:center}
 .btn{background:var(--bg-elevated);border:1px solid var(--border-subtle);padding:5px 10px;border-radius:6px}
 .btn:hover{border-color:var(--color-algo-scan)}
-.btn.on{background:#0c2a3a;border-color:var(--color-algo-scan);color:var(--color-algo-scan)}
-.btn.primary{background:var(--color-optimal);border-color:var(--color-optimal);color:#fff;font-weight:600}
+.btn.on{background:var(--scan-bg);border-color:var(--color-algo-scan);color:var(--color-algo-scan)}
+.btn.primary{background:var(--color-optimal-strong);border-color:var(--color-optimal);color:var(--on-accent);font-weight:600}
+:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--color-defense);flex:none}
+input[type=range]{height:24px;accent-color:var(--color-algo-scan)}
+.btn,.tab{min-height:30px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .viewport{grid-area:view;position:relative;overflow:hidden;background:var(--bg-void)}
 .viewport canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #v3d{display:none}
-.overlay{position:absolute;left:12px;top:10px;font:12px var(--mono);color:var(--text-secondary);pointer-events:none;background:rgba(17,24,39,.85);padding:8px 10px;border:1px solid var(--border-subtle);border-radius:6px;max-width:60%}
+.overlay{position:absolute;left:12px;top:10px;font:12px var(--mono);color:var(--text-secondary);pointer-events:none;background:var(--overlay-bg);padding:8px 10px;border:1px solid var(--border-subtle);border-radius:6px;max-width:60%}
 .overlay .big{font-size:15px;color:var(--text-primary)}
-.legend{position:absolute;right:12px;bottom:10px;display:flex;gap:12px;font-size:11px;color:var(--text-secondary);background:rgba(17,24,39,.85);padding:6px 10px;border-radius:6px;border:1px solid var(--border-subtle)}
+.legend{position:absolute;right:12px;bottom:10px;display:flex;gap:12px;font-size:11px;color:var(--text-secondary);background:var(--overlay-bg);padding:6px 10px;flex-wrap:wrap;border-radius:6px;border:1px solid var(--border-subtle)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 aside{grid-area:side;background:var(--bg-panel);border-left:1px solid var(--border-subtle);overflow:auto;padding:12px}
 aside h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin:14px 0 8px}
@@ -49,7 +62,7 @@ select,input[type=range]{width:100%}
 select{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:5px}
 .mono{font-family:var(--mono)}
 .consoles{grid-area:cons;background:var(--bg-panel);border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;min-height:0}
-.ctabs{display:flex;gap:2px;padding:4px 8px 0;border-bottom:1px solid var(--border-subtle)}
+.ctabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:thin;padding:4px 8px 0;border-bottom:1px solid var(--border-subtle)}
 .cbody{flex:1;overflow:auto;padding:8px 12px;font:12px/1.5 var(--mono);min-height:0}
 .cpane{display:none}.cpane.on{display:block}
 .log div{white-space:pre-wrap}
@@ -59,15 +72,58 @@ select{background:var(--bg-elevated);color:var(--text-primary);border:1px solid 
 table.t{border-collapse:collapse;margin:4px 0 8px}
 table.t td,table.t th{border:1px solid var(--border-subtle);padding:2px 7px;text-align:center}
 table.t th{color:var(--text-secondary);font-weight:400}
+.mats{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.mats h5,.th{font:600 11px var(--sans);text-transform:uppercase;letter-spacing:.8px;color:var(--text-secondary);margin:6px 0 2px}
+#c-teo p{margin:4px 0 8px;color:var(--text-primary)}
+td.chg{background:var(--scan-bg);color:var(--color-algo-scan);font-weight:600}
+td.piv{background:rgba(129,140,248,.12)}
+td.inf{color:var(--text-muted)}
+td.hot{color:var(--color-optimal);font-weight:600}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
 .kpi{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;padding:8px}
 .kpi span{color:var(--text-secondary);font:11px var(--sans)}.kpi b{display:block;font-size:20px}
 footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--border-subtle);color:var(--text-muted);font-size:11px;display:flex;align-items:center;padding:0 12px;gap:16px}
 .hidden{display:none!important}
-@media (max-width:900px){
-  .app{grid-template-columns:1fr;grid-template-rows:auto 55vh auto 260px auto;grid-template-areas:"top" "view" "side" "cons" "foot";height:auto}
-  header{flex-wrap:wrap;padding:8px 16px}.transport{margin-left:0}
-  aside{border-left:0}footer{padding:6px 16px;flex-wrap:wrap}
+.legend{max-width:calc(100% - 24px)}
+.cbody table.t{display:block;max-width:100%;overflow-x:auto}
+.transport label{white-space:nowrap}
+/* ---- notebook / tablet paisagem ---- */
+@media (max-width:1280px){
+  .app{grid-template-columns:minmax(0,1fr) 288px;grid-template-rows:auto minmax(0,1fr) 260px 26px}
+  header{flex-wrap:wrap;row-gap:6px;padding:6px 14px;min-height:44px}
+  .cards{grid-template-columns:repeat(2,1fr)}
+}
+/* ---- tablet retrato, celular e telas baixas: coluna única ---- */
+@media (max-width:900px),(max-height:520px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto min(80vh,680px) auto auto auto;
+    grid-template-areas:"top" "view" "side" "cons" "foot";height:auto;min-height:100vh}
+  header{padding:10px 16px;gap:10px}
+  .logo{flex:1 1 auto}
+  .tabs{order:3;flex:1 1 100%}.tabs .tab{flex:1;border-radius:6px}
+  .transport{order:4;flex:1 1 100%;margin-left:0;flex-wrap:wrap;gap:6px}
+  .transport .btn{flex:1 1 0;min-height:40px;padding:6px 4px;white-space:nowrap;font-size:12px}
+  .transport label{flex:1 1 100%;justify-content:space-between}
+  .transport label input{flex:1;width:auto!important}
+  aside{border-left:0;border-top:1px solid var(--border-subtle);padding:14px 16px}
+  .consoles{height:auto;max-height:none}
+  .cbody{max-height:420px;padding:10px 16px}
+  footer{padding:8px 16px;flex-wrap:wrap;row-gap:4px}
+  .overlay{left:8px;top:8px;right:8px;max-width:none;font-size:11px;padding:6px 8px}
+  .overlay .big{font-size:13px}
+  .legend{left:8px;right:8px;bottom:8px;max-width:none;gap:4px 10px;font-size:10px;padding:5px 8px;justify-content:center}
+  label.row select{width:58%!important}
+  .btn,.tab,select{min-height:40px}
+}
+@media (max-height:520px) and (min-width:560px){
+  .overlay{right:auto;max-width:46%}.overlay>div:first-child{display:none}
+  .app{grid-template-rows:auto calc(100vh - 16px) auto auto auto}
+}
+@media (max-width:480px){
+  .grid2{grid-template-columns:1fr}
+  .cards{grid-template-columns:1fr 1fr}
+  .kpi b{font-size:17px}
+  #c-tel>div:first-of-type{flex-wrap:wrap}
+  table.t td,table.t th{padding:2px 3px;font-size:11px}
 }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
@@ -75,7 +131,7 @@ footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--bord
 <body>
 <div class="app">
 <header>
-  <div class="logo">Cyber<b>Graph</b> Engine</div>
+  <h1 class="logo">Cyber<b>Graph</b> Engine</h1>
   <div class="tabs"><button class="tab on" data-view="2d">2D · Laboratório</button><button class="tab" data-view="3d">3D · Ecossistema</button></div>
   <div class="transport" id="transport">
     <button class="btn" id="bReset" title="Reset (R)">⟲ Reset</button>
@@ -86,10 +142,10 @@ footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--bord
   </div>
 </header>
 
-<main class="viewport" id="viewport">
-  <canvas id="v2d"></canvas>
-  <canvas id="v3d"></canvas>
-  <div class="overlay" id="overlay"></div>
+<main class="viewport" id="viewport" aria-label="Viewport do grafo">
+  <canvas id="v2d" role="img" aria-label="Grafo 2D da rede: clique numa aresta para editar o peso, arraste vértices"></canvas>
+  <canvas id="v3d" role="img" aria-label="Ecossistema 3D com ilhas de rede e agentes concorrentes"></canvas>
+  <div class="overlay" id="overlay" aria-live="polite"></div>
   <div class="legend" id="legend2d">
     <span><i style="background:var(--color-algo-scan)"></i>explorando</span>
     <span><i style="background:var(--color-algo-closed)"></i>fechado</span>
@@ -124,7 +180,7 @@ footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--bord
   <div id="p3d" class="hidden">
     <h3>Simulação concorrente</h3>
     <label class="row">Requisições simultâneas <span class="mono" id="rateV">25</span></label>
-    <input type="range" id="rate" min="5" max="60" value="25">
+    <input type="range" id="rate" aria-label="Requisições simultâneas" min="5" max="60" value="25">
     <label class="row">Mostrar tráfego legítimo <input type="checkbox" id="fLeg" checked></label>
     <label class="row">Mostrar vetores de ataque <input type="checkbox" id="fAtk" checked></label>
     <label class="row">Perímetros de Firewall <input type="checkbox" id="fFw" checked></label>
@@ -141,7 +197,10 @@ footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--bord
   <div class="ctabs">
     <button class="tab on" data-c="algo">Console algorítmico</button>
     <button class="tab" data-c="net">Rede &amp; segurança</button>
+    <button class="tab" data-c="mat">Matrizes</button>
+    <button class="tab" data-c="scn">Cenários A–E</button>
     <button class="tab" data-c="tel">Telemetria &amp; benchmark</button>
+    <button class="tab" data-c="teo">Teoria &amp; referências</button>
   </div>
   <div class="cbody">
     <div class="cpane on" id="c-algo"></div>
@@ -151,6 +210,31 @@ footer{grid-area:foot;background:var(--bg-panel);border-top:1px solid var(--bord
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><span style="color:var(--text-secondary)">Benchmark (grafos esparsos, ~4 arestas/vértice):</span><button class="btn" id="runBench">Executar 25→200 V</button></div>
       <canvas id="chart" height="150" style="width:100%;max-width:900px"></canvas>
       <div id="benchTable"></div>
+    </div>
+    <div class="cpane" id="c-mat"></div>
+    <div class="cpane" id="c-scn"></div>
+    <div class="cpane" id="c-teo" style="font-family:var(--sans);font-size:13px;max-width:980px">
+      <h4 class="th">1 · Modelo</h4>
+      <p>Infraestrutura modelada como grafo <b>direcionado e ponderado</b> <span class="mono">G = (V, E)</span>, |V| = 6, |E| = 9. Vértices = ativos (Internet, VPN, Estação, AD, Servidor, Banco). Arestas <span class="mono">u → v</span> = fluxo, confiança, permissão ou movimentação lateral — <span class="mono">u → v</span> não implica <span class="mono">v → u</span>. Peso <span class="mono">w(u,v) ≥ 0</span> = custo/dificuldade/resistência imposta pelos controles.</p>
+      <p>Custo de um caminho <span class="mono">P = (v₀,…,vₖ)</span>: <span class="mono">c(P) = Σ w(vᵢ, vᵢ₊₁)</span>. O caminho de ataque mais provável é o de <b>custo mínimo</b> <span class="mono">δ(s,t) = min c(P)</span>.</p>
+      <h4 class="th">2 · Algoritmos e complexidade</h4>
+      <table class="t" style="text-align:left"><tr><th>Algoritmo</th><th>Problema</th><th>Tempo</th><th>Espaço</th><th>Pesos negativos</th></tr>
+        <tr><td>Dijkstra (heap binário + parada antecipada)</td><td>origem única → destino</td><td class="mono">O((V+E) log V)</td><td class="mono">O(V+E)</td><td>não</td></tr>
+        <tr><td>Bellman-Ford</td><td>origem única</td><td class="mono">O(V·E)</td><td class="mono">O(V)</td><td>sim; rodada |V| detecta ciclo negativo</td></tr>
+        <tr><td>Floyd-Warshall</td><td>todos-para-todos</td><td class="mono">O(V³)</td><td class="mono">O(V²)</td><td>sim (sem ciclo negativo)</td></tr></table>
+      <p>Relaxamento: <span class="mono">se dist[v] &gt; dist[u] + w(u,v) então dist[v] ← dist[u] + w(u,v), prev[v] ← u</span>. Em caso de igualdade, <span class="mono">u</span> é acrescentado a <span class="mono">prev[v]</span> — é assim que o sistema encontra <b>todas as rotas empatadas</b>.</p>
+      <p>Floyd-Warshall: <span class="mono">D⁽ᵏ⁾[i][j] = min(D⁽ᵏ⁻¹⁾[i][j], D⁽ᵏ⁻¹⁾[i][k] + D⁽ᵏ⁻¹⁾[k][j])</span>, com a matriz de próximo salto <span class="mono">N</span> para reconstruir rotas.</p>
+      <h4 class="th">3 · Modo probabilístico</h4>
+      <p>Se cada transição tem probabilidade de sucesso <span class="mono">p ∈ (0,1]</span>, define-se <span class="mono">w = −ln(p)</span>. Como <span class="mono">Σ −ln(pᵢ) = −ln(Π pᵢ)</span>, <b>minimizar a soma dos pesos equivale a maximizar a probabilidade conjunta</b> do ataque. Pesos permanecem não-negativos, então Dijkstra continua válido.</p>
+      <h4 class="th">4 · Resultados de referência (Internet → Banco)</h4>
+      <table class="t"><tr><th>Cenário</th><th>Alteração</th><th>Custo mínimo</th><th>Rota(s)</th></tr>
+        <tr><td>A</td><td>linha de base</td><td>11</td><td>Internet→VPN→Estação→AD→Banco · Internet→VPN→AD→Banco (empate)</td></tr>
+        <tr><td>B</td><td>MFA: Internet→VPN 2→6</td><td>12</td><td>Internet→Estação→AD→Banco</td></tr>
+        <tr><td>C</td><td>AD→Banco 4→8</td><td>12</td><td>desvia pelo Servidor</td></tr>
+        <tr><td>D</td><td>B + C</td><td>13</td><td>—</td></tr>
+        <tr><td>E</td><td>D + Servidor→Banco 5→9</td><td>16</td><td>defesa em profundidade</td></tr></table>
+      <p>Conclusões: (i) o <b>empate</b> no cenário A mostra que uma defesa pontual não bloqueia todas as rotas; (ii) cada controle isolado acrescenta pouco custo porque o atacante desvia; (iii) só a <b>defesa em profundidade</b> (E) eleva o custo de forma expressiva (+45%); (iv) a <b>parada antecipada</b> do Dijkstra fecha apenas parte dos vértices (≈39–54% em grafos esparsos), daí sua vantagem prática.</p>
+      <p style="color:var(--text-muted)">Os pesos são custos didáticos relativos de transição (metodologia do estudo), não probabilidades absolutas de incidentes reais. Os valores da tabela de referência são recalculados ao vivo na aba “Cenários A–E”.</p>
     </div>
   </div>
 </section>
@@ -209,6 +293,7 @@ function* bellmanGen(G,s){
   const dist=new Map(),prev=new Map(),E=G.edges(),V=G.nodes.length;
   for(const n of G.nodes){dist.set(n.id,Infinity);prev.set(n.id,[])}dist.set(s,0);
   yield {type:'init',dist,prev,msg:`dist[${s}]=0; executando |V|-1 = ${V-1} rodadas`};
+  const hist=[{round:0,d:new Map(dist)}];
   for(let i=1;i<V;i++){
     let ch=false;
     for(const e of E){
@@ -216,12 +301,13 @@ function* bellmanGen(G,s){
       const nd=du+e.weight,old=dist.get(e.to);let res='keep';
       if(nd<old-1e-9){dist.set(e.to,nd);prev.set(e.to,[e.from]);ch=true;res='update'}
       else if(Math.abs(nd-old)<1e-9&&!prev.get(e.to).includes(e.from)){prev.get(e.to).push(e.from);res='tie'}
-      yield {type:'relax',round:i,u:e.from,v:e.to,e,res,dist,prev,msg:`[rodada ${i}] ${e.from}→${e.to}: ${fmt(old)} vs ${fmt(du)}+${fmt(e.weight)} = ${fmt(nd)} (${res})`};
+      yield {type:'relax',round:i,u:e.from,v:e.to,e,res,dist,prev,hist,msg:`[rodada ${i}] ${e.from}→${e.to}: ${fmt(old)} vs ${fmt(du)}+${fmt(e.weight)} = ${fmt(nd)} (${res})`};
     }
-    if(!ch){yield {type:'info',dist,prev,msg:`Rodada ${i} sem alterações: convergiu.`};break}
+    hist.push({round:i,d:new Map(dist)});
+    if(!ch){yield {type:'info',dist,prev,hist,msg:`Rodada ${i} sem alterações: convergiu (parada antecipada do Bellman-Ford).`};break}
   }
   let neg=false;for(const e of E){if(dist.get(e.from)+e.weight<dist.get(e.to)-1e-9)neg=true}
-  yield {type:'done',dist,prev,neg,msg:neg?'Rodada |V|: ciclo negativo detectado!':'Rodada |V|: nenhum ciclo negativo.'};
+  yield {type:'done',dist,prev,neg,hist,msg:neg?'Rodada |V|: ciclo negativo detectado!':'Rodada |V|: nenhum ciclo negativo.'};
 }
 function floyd(G){
   const ids=G.nodes.map(n=>n.id),n=ids.length,ix=new Map(ids.map((x,i)=>[x,i]));
@@ -230,12 +316,28 @@ function floyd(G){
   for(let k=0;k<n;k++)for(let i=0;i<n;i++){const dik=D[i][k];if(dik===Infinity)continue;for(let j=0;j<n;j++){const v=dik+D[k][j];if(v<D[i][j])D[i][j]=v}}
   return {ids,D};
 }
+function* floydGen(G,s){
+  const ids=G.nodes.map(n=>n.id),n=ids.length,ix=new Map(ids.map((x,i)=>[x,i]));
+  const D=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?0:Infinity));
+  const N=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?j:null));
+  for(const e of G.edges()){const i=ix.get(e.from),j=ix.get(e.to);if(e.weight<D[i][j]){D[i][j]=e.weight;N[i][j]=j}}
+  const row=()=>new Map(ids.map((x,j)=>[x,D[ix.get(s)][j]]));
+  const snap=(k,changed)=>({ids,D:D.map(r=>[...r]),N:N.map(r=>[...r]),k,changed});
+  yield {type:'init',dist:row(),fw:snap(-1,[]),msg:`D⁽⁰⁾ = matriz de pesos W (∞ onde não há aresta). Próximos ${n} passos: pivô k = 1…${n}.`};
+  for(let k=0;k<n;k++){
+    const changed=[];
+    for(let i=0;i<n;i++){const dik=D[i][k];if(dik===Infinity)continue;for(let j=0;j<n;j++){const v=dik+D[k][j];if(v<D[i][j]-1e-9){D[i][j]=v;N[i][j]=N[i][k];changed.push(i*n+j)}}}
+    yield {type:'extract',u:ids[k],dist:row(),fw:snap(k,changed),msg:`k=${k+1} · pivô ${ids[k]}: D[i][j] = min(D[i][j], D[i][${ids[k]}] + D[${ids[k]}][j]) → ${changed.length} célula(s) melhorada(s)`};
+  }
+  yield {type:'done',dist:row(),fw:snap(n,[]),msg:'Floyd-Warshall concluído: D⁽ⁿ⁾ contém δ(i,j) para todos os pares.'};
+}
 function dijkstraFast(G,s,t){let last;for(const st of dijkstraGen(G,s,t))last=st;return last}
 function allPaths(prev,s,t){
   if(t===s)return [[s]];const out=[];
   for(const p of prev.get(t)||[])for(const path of allPaths(prev,s,p))out.push([...path,t]);
   return out;
 }
+const fmtP=p=>p>=1e-3?p.toFixed(4):p.toExponential(2);
 const fmt=x=>x===Infinity?'∞':(Number.isInteger(x)?String(x):x.toFixed(3));
 
 /* ================= INSTÂNCIA ================= */
@@ -281,7 +383,7 @@ let layout='h',selected=null,src='Internet',dst='Banco',gen=null,state=null,play
 let pos={},anim={};
 function resize(){
   const r=$('#viewport').getBoundingClientRect();DPR=devicePixelRatio||1;W=r.width;H=r.height;
-  for(const c of [cv]){c.width=W*DPR;c.height=H*DPR}ctx.setTransform(DPR,0,0,DPR,0,0);computeLayout();
+  for(const c of [cv]){c.width=W*DPR;c.height=H*DPR}ctx.setTransform(DPR,0,0,DPR,0,0);computeLayout();for(const k in anim)pos[k]={...anim[k]};
   if(r3)r3.resize(W,H);
 }
 function computeLayout(){
@@ -289,8 +391,16 @@ function computeLayout(){
   if(layout==='h'){
     const cols={Internet:0,VPN:1,Estação:1,AD:2,Servidor:2,Banco:3};
     const rows={Internet:.5,VPN:.28,Estação:.72,AD:.28,Servidor:.72,Banco:.5};
-    const mx=Math.max(80,W*.1),usable=W-mx*2;
-    for(const n of G.nodes)target[n.id]={x:mx+usable*(cols[n.id]??1)/3,y:70+(H-130)*(rows[n.id]??.5)};
+    const ov=$('#overlay'),lg=$('#legend2d'),narrow=W<640;
+    let top=Math.max(70,ov.offsetTop+ov.offsetHeight+16+(narrow?NR:66)),bot=lg.offsetHeight+16+NR+(narrow?14:22);
+    const need=narrow?260:190;if(H-top-bot<need)top=Math.max(NR+24,H-bot-need);
+    if(narrow){ /* celular: hierarquia de cima para baixo para caber na largura */
+      const mx=Math.max(NR+12,W*.14),uw=W-mx*2,uh=Math.max(120,H-top-bot);
+      for(const n of G.nodes)target[n.id]={x:mx+uw*(rows[n.id]??.5),y:top+uh*(cols[n.id]??1)/3};
+    }else{
+      const mx=Math.max(80,W*.1),usable=W-mx*2;
+      for(const n of G.nodes)target[n.id]={x:mx+usable*(cols[n.id]??1)/3,y:top+(H-top-bot)*(rows[n.id]??.5)};
+    }
   }else{
     const cx=W/2,cy=H/2+10,R=Math.min(W,H)*.42;
     const ring={Banco:[0,0],AD:[.38,-90],Servidor:[.38,90],Estação:[.68,160],VPN:[.68,-160],Internet:[1,180]};
@@ -319,9 +429,10 @@ function draw2d(now){
   // perimeter
   const ins=['Estação','AD','Servidor','Banco'].map(k=>pos[k]);
   let x0=Math.min(...ins.map(p=>p.x))-60,x1=Math.max(...ins.map(p=>p.x))+60,y0=Math.min(...ins.map(p=>p.y))-60,y1=Math.max(...ins.map(p=>p.y))+60;
+  const pad=W<640?44:60;if(W<640){x0=Math.max(4,x0+60-pad);x1=Math.min(W-4,x1-60+pad);y0+=60-pad;y1=Math.min(H-4,y1-60+pad)}
   ctx.fillStyle='rgba(16,185,129,.06)';ctx.strokeStyle=C['color-defense'];ctx.setLineDash([8,6]);ctx.lineWidth=1.5;
   ctx.beginPath();ctx.roundRect(x0,y0,x1-x0,y1-y0,24);ctx.fill();ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle=C['color-defense'];ctx.font='600 11px Inter';ctx.fillText('INTRANET · PERÍMETRO (Firewall)',x0+14,y0+18);
+  const isle={x0,y0,x1,y1};
   // path sets
   const opt=new Set(),tie=new Set();
   if(finalRes){finalRes.paths.forEach((p,i)=>{for(let j=0;j<p.length-1;j++)(i===0?opt:tie).add(p[j]+'>'+p[j+1])})}
@@ -342,18 +453,12 @@ function draw2d(now){
     const p=qpt(g,t),p2=qpt(g,t-.02),ang=Math.atan2(p.y-p2.y,p.x-p2.x);
     ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-13*Math.cos(ang-.4),p.y-13*Math.sin(ang-.4));ctx.lineTo(p.x-13*Math.cos(ang+.4),p.y-13*Math.sin(ang+.4));ctx.fill();
     // weight pill
-    const m=qpt(g,.5);const txt=$('#prob').checked?`p=${Math.exp(-e.weight).toFixed(3)}`:(e.controlActive?`${e.baseWeight}→${e.weight}`:String(e.weight));
+    const m=qpt(g,.5);const txt=$('#prob').checked?(pv=>(W<640||H<420)?(pv<.0005?'≈0':pv.toFixed(3).replace(/^0/,'')):`p=${pv.toFixed(3)}`)(Math.exp(-e.weight)):(e.controlActive?`${e.baseWeight}→${e.weight}`:String(e.weight));
     ctx.font='600 12px JetBrains Mono';const tw=ctx.measureText(txt).width+14;
     ctx.fillStyle=C['bg-panel'];ctx.strokeStyle=e.controlActive?C['color-defense']:(cur?C['color-algo-scan']:C['border-subtle']);ctx.lineWidth=1.5;
     ctx.beginPath();ctx.roundRect(m.x-tw/2,m.y-11,tw,22,11);ctx.fill();ctx.stroke();
     ctx.fillStyle=e.controlActive?C['color-defense']:C['text-primary'];ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,m.x,m.y+1);
-    e._mid=m;
-  }
-  // relax math label
-  if(state&&state.type==='relax'&&state.e){
-    const m=state.e._mid;if(m){const t=state.msg;ctx.font='12px JetBrains Mono';const tw=ctx.measureText(t).width+16;
-      ctx.fillStyle='rgba(12,42,58,.95)';ctx.strokeStyle=C['color-algo-scan'];ctx.beginPath();ctx.roundRect(m.x-tw/2,m.y-42,tw,22,6);ctx.fill();ctx.stroke();
-      ctx.fillStyle=C['color-algo-scan'];ctx.fillText(t,m.x,m.y-31)}
+    e._mid=m;e._tw=tw;
   }
   // nodes
   const icons={Internet:'🌐',VPN:'🔐',Estação:'💻',AD:'🗂️',Servidor:'🖥️',Banco:'🛢️'};
@@ -366,23 +471,50 @@ function draw2d(now){
     ctx.shadowColor=ring;ctx.shadowBlur=glow;ctx.fillStyle=fill;ctx.strokeStyle=ring;ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(p.x,p.y,NR,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
     ctx.font='20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(icons[n.id]||'●',p.x,p.y+1);
-    ctx.font='600 12px Inter';ctx.fillStyle=C['text-primary'];ctx.fillText(n.id,p.x,p.y+NR+13);
-    const d=state&&state.dist?state.dist.get(n.id):undefined;
-    if(d!==undefined){ctx.font='600 11px JetBrains Mono';ctx.fillStyle=d===Infinity?C['text-muted']:C['color-algo-scan'];ctx.fillText('d='+fmt(d),p.x,p.y-NR-10)}
   }
+  // rótulos por último, em pílulas com fundo, desviando dos pesos e uns dos outros
+  const placed=G.edges().filter(e=>e._mid).map(e=>({x:e._mid.x-(e._tw||44)/2-2,y:e._mid.y-12,w:(e._tw||44)+4,h:24}));
+  for(const n of G.nodes)placed.push({x:pos[n.id].x-NR,y:pos[n.id].y-NR,w:NR*2,h:NR*2});
+  for(const el of [$('#overlay'),$('#legend2d')])if(el.offsetParent)placed.push({x:el.offsetLeft,y:el.offsetTop,w:el.offsetWidth,h:el.offsetHeight});
+  const hit=r=>placed.some(q=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y);
+  const pill=(txt,font,color,cx,cy,cands)=>{ctx.font=font;const w=ctx.measureText(txt).width+12,h=18;
+    let best=null;for(const [dx,dy] of cands){const r={x:cx+dx-w/2,y:cy+dy-h/2,w,h};
+      r.x=Math.max(2,Math.min(W-w-2,r.x));r.y=Math.max(2,Math.min(H-h-2,r.y));if(!hit(r)){best=r;break}best=best||r}
+    placed.push(best);ctx.fillStyle='rgba(9,13,22,.86)';ctx.beginPath();ctx.roundRect(best.x,best.y,w,h,9);ctx.fill();
+    ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,best.x+w/2,best.y+h/2+1)};
+  const o=NR+12,side=NR+34;
+  for(const n of G.nodes){const p=pos[n.id];
+    pill(n.id,'600 12px Inter',C['text-primary'],p.x,p.y,[[0,o],[side+8,0],[-side-8,0],[0,-o],[side,o],[-side,o]]);
+    const d=state&&state.dist?state.dist.get(n.id):undefined;
+    if(d!==undefined)pill('d='+fmt(d),'600 11px JetBrains Mono',d===Infinity?C['text-muted']:C['color-algo-scan'],p.x,p.y,[[0,-o],[side,-o+6],[-side,-o+6],[side+4,0],[-side-4,0],[0,o+20]]);
+  }
+  // balão de relaxamento: por último, escolhe posição livre perto da aresta (placed)
+  if(state&&state.type==='relax'&&state.e&&state.e._mid&&state.msg){
+    const m=state.e._mid;ctx.font='12px JetBrains Mono';
+    const wrap=mw=>{const out=[];let cur='';for(const w of state.msg.split(' ')){const t=cur?cur+' '+w:w;if(cur&&ctx.measureText(t).width>mw){out.push(cur);cur=w}else cur=t}out.push(cur);return out};
+    const ov=r=>placed.reduce((a,q)=>{const w=Math.min(r.x+r.w,q.x+q.w)-Math.max(r.x,q.x),h=Math.min(r.y+r.h,q.y+q.h)-Math.max(r.y,q.y);return a+(w>0&&h>0?w*h:0)},0);
+    let best=null,bs=1e12,lines=[state.msg],tw=0,th=0;
+    for(const L of [[state.msg],state.msg.split(/\s*→\s*/).map((x,i)=>i?'→ '+x:x),wrap(210),wrap(150)]){
+      const w=Math.max(...L.map(l=>ctx.measureText(l).width))+16,h=L.length*16+6;if(w>W-4)continue;
+      for(let y=2;y<=H-h-2;y+=6)for(let cx=2;cx<=W-w-2;cx+=12){const r={x:cx,y,w,h};
+        const sc=ov({x:r.x-5,y:r.y-4,w:r.w+10,h:r.h+8})*4+Math.hypot(r.x+w/2-m.x,r.y+h/2-m.y)*3+(L.length-1)*40;if(sc<bs){bs=sc;best=r;lines=L;tw=w;th=h}}}
+    placed.push(best);ctx.fillStyle='rgba(12,42,58,.95)';ctx.strokeStyle=C['color-algo-scan'];ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(best.x,best.y,tw,th,6);ctx.fill();ctx.stroke();
+    ctx.fillStyle=C['color-algo-scan'];ctx.textAlign='center';ctx.textBaseline='middle';lines.forEach((l,k)=>ctx.fillText(l,best.x+tw/2,best.y+11+k*16))}
+  { const t=W<640?'INTRANET · FIREWALL':'INTRANET · PERÍMETRO (Firewall)';ctx.font='600 11px Inter';const hw=ctx.measureText(t).width/2+12;
+    const {x0,y0,x1,y1}=isle;pill(t,'600 11px Inter',C['color-defense'],x0+hw,y1-14,[[0,0],[0,y0-y1+28],[x1-x0-hw*2,0],[x1-x0-hw*2,y0-y1+28],[0,24]]); }
 }
 
 /* ======= algorithm control ======= */
 function resetAlgo(){
   const a=$('#algo').value;finalRes=null;state=null;
-  gen=a==='dijkstra'?dijkstraGen(G,src,dst):a==='bellman'?bellmanGen(G,src):null;
-  if(a==='floyd'){runFloyd();return}
+  gen=a==='dijkstra'?dijkstraGen(G,src,dst):a==='bellman'?bellmanGen(G,src):floydGen(G,src);
   stepAlgo();renderAlgoConsole();updateOverlay();
 }
 function finish(st){
-  const paths=allPaths(st.prev,src,dst);const cost=st.dist.get(dst);
+  if(!st.prev){const d=dijkstraFast(G,src,dst);st={...st,prev:d.prev}}
+  const paths=st.dist.get(dst)===Infinity?[]:allPaths(st.prev,src,dst);const cost=st.dist.get(dst);
   finalRes={cost,paths,closed:st.closed?st.closed.size:null};
-  log('ROUTE',`Custo mínimo ${src}→${dst} = <b>${fmt(cost)}</b>${$('#prob').checked?` (p conjunta = ${Math.exp(-cost).toFixed(4)})`:''} · ${paths.length} rota(s): ${paths.map(p=>p.join(' → ')).join(' | ')}`);
+  log('ROUTE',`Custo mínimo ${src}→${dst} = <b>${fmt(cost)}</b>${$('#prob').checked?` (p conjunta = ${fmtP(Math.exp(-cost))})`:''} · ${paths.length} rota(s): ${paths.map(p=>p.join(' → ')).join(' | ')}`);
   if(paths.length>1)log('ALERT',`Empate de custo mínimo: ${paths.length} rotas equivalentes. Uma defesa pontual não bloqueia todas.`);
   if(st.closed)log('INFO',`Parada antecipada: ${st.closed.size}/${G.nodes.length} vértices fechados (${Math.round(st.closed.size/G.nodes.length*100)}%).`);
   if(st.neg)log('ALERT','Ciclo negativo detectado.');
@@ -396,15 +528,60 @@ function stepAlgo(){
   renderAlgoConsole();updateOverlay();return true;
 }
 function runAll(){if(!gen)resetAlgo();while(gen&&stepAlgo());}
-function runFloyd(){
-  const t0=performance.now();const {ids,D}=floyd(G);const ms=performance.now()-t0;
-  state=null;const d=dijkstraFast(G,src,dst);finish(d);state={dist:new Map(ids.map((x,i)=>[x,D[ids.indexOf(src)][i]]))};
-  let h=`<div style="color:var(--text-secondary)">Floyd-Warshall · matriz todos-para-todos · O(V³) tempo, O(V²) espaço · ${ms.toFixed(3)} ms</div><table class="t"><tr><th></th>${ids.map(i=>`<th>${i}</th>`).join('')}</tr>`;
-  for(let i=0;i<ids.length;i++)h+=`<tr><th>${ids[i]}</th>${D[i].map((v,j)=>`<td style="${ids[i]===src&&ids[j]===dst?'color:var(--color-optimal);font-weight:600':''}">${fmt(v)}</td>`).join('')}</tr>`;
-  $('#c-algo').innerHTML=h+'</table>';updateOverlay();
+/* ======= matrizes ======= */
+function matTable(ids,cell,cls=()=>''){
+  return `<table class="t"><tr><th></th>${ids.map(i=>`<th>${i}</th>`).join('')}</tr>${ids.map((r,i)=>`<tr><th>${r}</th>${ids.map((_,j)=>{const v=cell(i,j);return `<td class="${cls(i,j,v)}">${v}</td>`}).join('')}</tr>`).join('')}</table>`;
+}
+function renderFloydState(fw){
+  const {ids,D,N,k,changed}=fw,n=ids.length,ch=new Set(changed),si=ids.indexOf(src),ti=ids.indexOf(dst);
+  const cls=(i,j,v)=>[ch.has(i*n+j)?'chg':'',(i===k||j===k)&&k>=0&&k<n?'piv':'',v==='∞'?'inf':'',i===si&&j===ti?'hot':''].join(' ');
+  const title=k<0?'D⁽⁰⁾ = W':k>=n?`D⁽${n}⁾ (final)`:`D⁽${k+1}⁾ · pivô ${ids[k]}`;
+  return `<div class="mats"><div><h5>${title}</h5>${matTable(ids,(i,j)=>fmt(D[i][j]),cls)}</div>
+    <div><h5>Próximo salto N (reconstrução de rota)</h5>${matTable(ids,(i,j)=>N[i][j]==null?'—':ids[N[i][j]],(i,j)=>[ch.has(i*n+j)?'chg':'',N[i][j]==null?'inf':''].join(' '))}</div></div>
+    <div style="color:var(--text-secondary)">Células em ciano melhoraram neste passo; linha/coluna do pivô em índigo. O(V³) = ${n}³ = ${n**3} relaxamentos.</div>`;
+}
+function renderBellmanHist(hist,ids){
+  return `<h5 class="th">dist[] após cada rodada</h5><table class="t"><tr><th>rodada</th>${ids.map(i=>`<th>${i}</th>`).join('')}</tr>${hist.map((h,r)=>`<tr><th>${h.round}</th>${ids.map(i=>{const v=h.d.get(i),p=r?hist[r-1].d.get(i):v;return `<td class="${v<p?'chg':v===Infinity?'inf':''}">${fmt(v)}</td>`}).join('')}</tr>`).join('')}</table>`;
+}
+function routeFromN(fw,i,j){if(fw.N[i][j]==null)return null;const p=[i];while(i!==j){i=fw.N[i][j];p.push(i)}return p.map(x=>fw.ids[x])}
+function renderMatrices(){
+  const ids=G.nodes.map(n=>n.id),n=ids.length,ix=new Map(ids.map((x,i)=>[x,i]));
+  const A=ids.map(()=>ids.map(()=>0)),Wm=ids.map((_,i)=>ids.map((_,j)=>i===j?0:Infinity));
+  for(const e of G.edges()){A[ix.get(e.from)][ix.get(e.to)]=1;Wm[ix.get(e.from)][ix.get(e.to)]=e.weight}
+  let fw;for(const st of floydGen(G,src))fw=st.fw;
+  const ctrl=new Set(G.edges().filter(e=>e.controlActive).map(e=>ix.get(e.from)*n+ix.get(e.to)));
+  const prob=$('#prob').checked;
+  const deg=ids.map((id,i)=>({id,out:A[i].reduce((a,b)=>a+b,0),in:A.reduce((a,r)=>a+r[i],0)}));
+  const reach=ids.map((_,i)=>ids.map((_,j)=>fw.D[i][j]<Infinity?1:0));
+  const route=routeFromN(fw,ix.get(src),ix.get(dst));
+  $('#c-mat').innerHTML=`<div style="color:var(--text-secondary);margin-bottom:6px">Cenário ${SCEN[scenario].n} · |V| = ${n}, |E| = ${G.edges().length}, densidade = ${(G.edges().length/(n*(n-1))*100).toFixed(1)}% · linha = origem, coluna = destino</div>
+  <div class="mats">
+    <div><h5>Adjacência A (A[u][v] = 1 se u→v)</h5>${matTable(ids,(i,j)=>A[i][j],(i,j,v)=>v?'':'inf')}</div>
+    <div><h5>Pesos W ${prob?'':'(verde = controle ativo)'}</h5>${matTable(ids,(i,j)=>fmt(Wm[i][j]),(i,j,v)=>ctrl.has(i*n+j)?'chg" style="background:#064e3b;color:#6ee7b7':v==='∞'?'inf':'')}</div>
+    ${prob?`<div><h5>Probabilidade P = e^(−w)</h5>${matTable(ids,(i,j)=>Wm[i][j]===Infinity?'0':i===j?'1':Math.exp(-Wm[i][j]).toFixed(3),(i,j,v)=>v==='0'?'inf':'')}</div>`:''}
+    <div><h5>Distâncias D (Floyd-Warshall)</h5>${matTable(ids,(i,j)=>fmt(fw.D[i][j]),(i,j,v)=>i===ix.get(src)&&j===ix.get(dst)?'hot':v==='∞'?'inf':'')}</div>
+    <div><h5>Próximo salto N</h5>${matTable(ids,(i,j)=>fw.N[i][j]==null?'—':ids[fw.N[i][j]],(i,j,v)=>v==='—'?'inf':'')}</div>
+    <div><h5>Alcançabilidade R (fecho transitivo)</h5>${matTable(ids,(i,j)=>reach[i][j],(i,j,v)=>v?'':'inf')}</div>
+    <div><h5>Graus</h5><table class="t"><tr><th>vértice</th><th>entrada</th><th>saída</th></tr>${deg.map(d=>`<tr><th>${d.id}</th><td>${d.in}</td><td>${d.out}</td></tr>`).join('')}</table></div>
+  </div>
+  <div>Rota reconstruída por N: <span style="color:var(--color-optimal)">${route?route.join(' → '):'inalcançável'}</span> (custo ${fmt(fw.D[ix.get(src)][ix.get(dst)])}${prob?`, p conjunta = ${fmtP(Math.exp(-fw.D[ix.get(src)][ix.get(dst)]))}`:''})</div>`;
+}
+/* ======= cenários A–E + sensibilidade ======= */
+function scenarioGraph(k){const g=new GraphCore();for(const n of G.nodes)g.addNode(n.id);for(const [u,v,w] of BASE){const ov=SCEN[k].w[u+'>'+v];const e=g.addEdge(u,v,ov??w);e.baseWeight=w;e.controlActive=ov!==undefined}return g}
+function renderScenarios(){
+  const rows=Object.keys(SCEN).map(k=>{const g=scenarioGraph(k),st=dijkstraFast(g,'Internet','Banco');const c=st.dist.get('Banco');return {k,c,paths:allPaths(st.prev,'Internet','Banco'),closed:st.closed.size}});
+  const base=rows[0].c;
+  let h=`<h5 class="th">Comparativo dos cenários (Internet → Banco)</h5><table class="t"><tr><th>Cenário</th><th>Arestas alteradas</th><th>Custo</th><th>Δ vs A</th><th>Rotas</th><th>Fechados</th><th>Rota(s) ótima(s)</th></tr>${rows.map(r=>`<tr${r.k===scenario?' style="outline:1px solid var(--color-algo-scan)"':''}><td>${SCEN[r.k].n}</td><td>${Object.entries(SCEN[r.k].w).map(([e,w])=>e.replace('>','→')+'='+w).join(', ')||'—'}</td><td class="hot">${fmt(r.c)}</td><td>${r.c===base?'—':'+'+fmt(r.c-base)+' ('+Math.round((r.c-base)/base*100)+'%)'}</td><td>${r.paths.length}</td><td>${r.closed}/6</td><td style="text-align:left">${r.paths.map(p=>p.join('→')).join('<br>')}</td></tr>`).join('')}</table>`;
+  // sensibilidade: +4 em cada aresta do grafo atual
+  const cur=dijkstraFast(G,src,dst).dist.get(dst);
+  const sens=G.edges().map(e=>{const w0=e.weight;e.weight=w0+4;const c=dijkstraFast(G,src,dst).dist.get(dst);e.weight=w0;return {e,c,d:c-cur}}).sort((a,b)=>b.d-a.d);
+  h+=`<h5 class="th">Sensibilidade (estado atual, ${src} → ${dst}, custo ${fmt(cur)}): efeito de +4 em cada aresta</h5><table class="t"><tr><th>Aresta</th><th>w</th><th>Novo custo</th><th>Δ</th><th>Leitura</th></tr>${sens.map(s=>`<tr><td>${s.e.from}→${s.e.to}</td><td>${s.e.weight}</td><td>${fmt(s.c)}</td><td class="${s.d>0?'hot':'inf'}">${s.d>0?'+'+fmt(s.d):'0'}</td><td style="text-align:left">${s.d>=4?'gargalo único: toda rota ótima passa aqui':s.d>0?'reduz parcialmente (há desvio)':'irrelevante: atacante desvia sem custo'}</td></tr>`).join('')}</table>
+  <div style="color:var(--text-secondary)">Controles em arestas com Δ = 0 não protegem o alvo; é o efeito do empate do cenário A.</div>`;
+  $('#c-scn').innerHTML=h;
 }
 function renderAlgoConsole(){
-  if(!state||$('#algo').value==='floyd')return;
+  if(!state)return;
+  if(state.fw){$('#c-algo').innerHTML=`<div style="color:var(--text-secondary)">${state.msg||''}</div>`+renderFloydState(state.fw);return}
   const ids=G.nodes.map(n=>n.id);
   let h=`<div style="color:var(--text-secondary)">${state.msg||''}</div><table class="t"><tr><th></th>${ids.map(i=>`<th>${i}</th>`).join('')}</tr>`;
   h+=`<tr><th>dist[]</th>${ids.map(i=>`<td style="color:${state.v===i?'var(--color-algo-scan)':'inherit'}">${fmt(state.dist.get(i))}</td>`).join('')}</tr>`;
@@ -413,17 +590,19 @@ function renderAlgoConsole(){
   h+='</table>';
   if(state.heap)h+=`<div>Min-Heap: [ ${state.heap.map(x=>`<span style="color:var(--color-algo-scan)">${x.k}:${fmt(x.d)}</span>`).join(', ')||'vazio'} ]</div>`;
   if(state.closed)h+=`<div>Vértices fechados: ${state.closed.size}/${ids.length} (${Math.round(state.closed.size/ids.length*100)}%)</div>`;
+  if(state.hist)h+=renderBellmanHist(state.hist,ids);
   $('#c-algo').innerHTML=h;
 }
 function updateOverlay(){
   const a={dijkstra:'Dijkstra · O((V+E) log V)',bellman:'Bellman-Ford · O(V·E)',floyd:'Floyd-Warshall · O(V³)'}[$('#algo').value];
   $('#overlay').innerHTML=`<div>${a}</div><div class="big">Cenário ${SCEN[scenario].n}</div>`+
-   (finalRes?`<div>Custo mínimo ${src}→${dst}: <b style="color:var(--color-optimal)">${fmt(finalRes.cost)}</b> · ${finalRes.paths.length} rota(s)</div>${finalRes.paths.map((p,i)=>`<div style="color:${i?'var(--color-tie)':'var(--color-optimal)'}">${p.join(' → ')}</div>`).join('')}`:'<div>Use Passo (→) ou Play para executar.</div>');
+   (finalRes?`<div>Custo mínimo ${src}→${dst}: <b style="color:var(--color-optimal)">${fmt(finalRes.cost)}</b> · ${finalRes.paths.length} rota(s)</div>${$('#prob').checked?`<div>p conjunta = e<sup>−custo</sup> = <b>${fmtP(Math.exp(-finalRes.cost))}</b></div>`:''}${finalRes.paths.map((p,i)=>`<div style="color:${i?'var(--color-tie)':'var(--color-optimal)'}">${p.join(' → ')}</div>`).join('')}`:'<div>Use Passo (→) ou Play para executar.</div>');
 }
 function updateKPIs(){
   const t=bench1(G,src,dst);
   $('#kpis').innerHTML=[['Custo mínimo',fmt(finalRes?.cost??'—')],['Rotas empatadas',finalRes?.paths.length??'—'],['Vértices fechados',finalRes?.closed!=null?`${finalRes.closed}/${G.nodes.length}`:'—'],['Tempo D / BF / FW (µs)',`${t.map(x=>(x*1000).toFixed(0)).join(' / ')}`]]
    .map(([k,v])=>`<div class="kpi"><span>${k}</span><b class="mono">${v}</b></div>`).join('');
+  renderMatrices();renderScenarios();
 }
 function bench1(g,s,t,reps=200){
   const time=f=>{const t0=performance.now();for(let i=0;i<reps;i++)f();return (performance.now()-t0)/reps};
@@ -433,14 +612,19 @@ function bench1(g,s,t,reps=200){
 /* ======= edge editor ======= */
 function renderEditor(){
   const el=$('#edgeEditor');
-  if(!selected){el.innerHTML='<span style="color:var(--text-muted)">Clique numa aresta no 2D para editar.</span>';return}
+  if(!selected){el.innerHTML='<span style="color:var(--text-muted)">Clique numa aresta no 2D ou 3D para editar.</span>';return}
   const e=selected;
   el.innerHTML=`<div class="mono" style="font-size:14px">${e.from} → ${e.to}</div>
    <label class="row">Peso atual <b class="mono" id="ewv">${e.weight}</b></label>
    <input type="range" min="1" max="20" value="${e.weight}" id="ew">
    <label class="row">Aplicar controle de segurança (+4) <input type="checkbox" id="ec" ${e.controlActive?'checked':''}></label>
-   <div style="color:var(--text-muted);font-size:11px">Peso base: ${e.baseWeight}${$('#prob').checked?` · p = e^-w = ${Math.exp(-e.weight).toFixed(3)}`:''}</div>`;
-  $('#ew').oninput=ev=>{e.weight=+ev.target.value;e.controlActive=e.weight!==e.baseWeight;$('#ewv').textContent=e.weight;$('#ec').checked=e.controlActive};
+   ${$('#prob').checked?`<label class="row">Probabilidade p ∈ (0,1] <input type="number" id="ep" min="0.001" max="1" step="0.01" value="${Math.exp(-e.weight).toFixed(3)}" style="width:80px"></label>`:''}
+   <div style="color:var(--text-muted);font-size:11px">Peso base: ${fmt(e.baseWeight)}${$('#prob').checked?` · p = e^-w = ${Math.exp(-e.weight).toFixed(3)}`:''}</div>`;
+  $('#ew').oninput=ev=>{e.weight=+ev.target.value;e.controlActive=Math.abs(e.weight-e.baseWeight)>1e-9;$('#ewv').textContent=fmt(e.weight);$('#ec').checked=e.controlActive;const ep=$('#ep');if(ep)ep.value=Math.exp(-e.weight).toFixed(3)};
+  if($('#ep'))$('#ep').onchange=ev=>{const p=parseFloat(ev.target.value);
+    if(!(p>0&&p<=1)){log('ALERT',`p=${ev.target.value} inválido: use 0 < p ≤ 1.`);ev.target.value=Math.exp(-e.weight).toFixed(3);return}
+    e.weight=probToWeight(p);e.controlActive=Math.abs(e.weight-e.baseWeight)>1e-9;
+    log('DEFENSE',`p ${e.from}→${e.to} = ${p} ⇒ w = -ln(p) = ${fmt(e.weight)}.`);renderEditor();resetAlgo();runAll();sync3dWeights()};
   $('#ew').onchange=()=>{log('DEFENSE',`Peso ${e.from}→${e.to} ajustado para ${e.weight}.`);resetAlgo();runAll();sync3dWeights()};
   $('#ec').onchange=ev=>{e.weight=ev.target.checked?e.baseWeight+4:e.baseWeight;e.controlActive=ev.target.checked;
     log('DEFENSE',`Controle ${ev.target.checked?'ativado':'removido'} em ${e.from}→${e.to} (w=${e.weight}).`);renderEditor();resetAlgo();runAll();sync3dWeights()};
@@ -448,7 +632,7 @@ function renderEditor(){
 cv.addEventListener('click',ev=>{
   const r=cv.getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;let best=null,bd=18;
   for(const e of G.edges()){const g=edgeGeom(e);for(let t=0;t<=1;t+=.02){const p=qpt(g,t);const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=e}}}
-  selected=best;renderEditor();
+  selected=best;sel3=null;renderEditor();sync3dWeights();
 });
 // drag nodes
 let drag=null;
@@ -465,8 +649,8 @@ $('#bRun').onclick=()=>{resetAlgo();runAll()};
 $('#speed').oninput=e=>$('#speedV').textContent=(+e.target.value).toFixed(1)+'x';
 $('#algo').onchange=()=>{resetAlgo();if($('#algo').value==='floyd')updateKPIs()};
 $('#layout').onchange=e=>{layout=e.target.value;computeLayout()};
-$('#prob').onchange=()=>{renderEditor();log('INFO',$('#prob').checked?'Modo probabilístico: w = -ln(p). Minimizar Σw ≡ maximizar Πp.':'Modo de custo aditivo.')};
-document.querySelectorAll('.ctabs .tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ctabs .tab').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.cpane').forEach(p=>p.classList.toggle('on',p.id==='c-'+b.dataset.c));if(b.dataset.c==='tel')drawChart()});
+$('#prob').onchange=()=>{renderEditor();renderMatrices();if(view!=='3d')updateOverlay();log('INFO',$('#prob').checked?'Modo probabilístico: w = -ln(p). Minimizar Σw ≡ maximizar Πp.':'Modo de custo aditivo.')};
+document.querySelectorAll('.ctabs .tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ctabs .tab').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.cpane').forEach(p=>p.classList.toggle('on',p.id==='c-'+b.dataset.c));if(b.dataset.c==='tel')drawChart();if(b.dataset.c==='mat')renderMatrices();if(b.dataset.c==='scn')renderScenarios()});
 addEventListener('keydown',e=>{if(['INPUT','SELECT'].includes(e.target.tagName)&&e.target.type!=='range'&&e.target.type!=='checkbox')return;
   if(e.code==='Space'){e.preventDefault();togglePlay()}else if(e.code==='ArrowRight'&&view==='2d'){e.preventDefault();$('#bStep').click()}
   else if(e.key==='1')setView('2d');else if(e.key==='2')setView('3d');else if(e.key==='r'||e.key==='R')$('#bReset').click()});
@@ -480,26 +664,60 @@ function randomGraph(n,deg=4,seed=1){
   for(let k=0;k<n*(deg-1);k++){const a=Math.floor(rnd()*n),b=Math.floor(rnd()*n);if(a!==b&&!g.edge('v'+a,'v'+b))g.addEdge('v'+a,'v'+b,1+Math.floor(rnd()*10))}
   return g;
 }
-$('#runBench').onclick=()=>{
-  benchData=[];
+function benchSync(){
+  const out=[],med=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
   for(const n of [25,50,100,150,200]){
-    const g=randomGraph(n,4,n*7);const reps=n>100?3:10;const t=bench1(g,'v0','v'+(n-1),reps);
-    const st=dijkstraFast(g,'v0','v'+(n-1));benchData.push({n,e:g.edges().length,t,closed:st.closed.size});
+    const reps=n>100?3:10,T=[[],[],[]],F=[];let e=0;
+    for(let k=0;k<7;k++){
+      const seed=n*7+k,g=randomGraph(n,4,seed);e+=g.edges().length;
+      const full=dijkstraFast(g,'v0',null),reach=g.nodes.map(x=>x.id).filter(id=>id!=='v0'&&full.dist.get(id)<Infinity);
+      let r=seed;for(let q=0;q<3;q++)r=(r*16807)%2147483647;
+      const dst=reach.length?reach[Math.floor(r/2147483647*reach.length)]:'v'+(n-1);
+      const t=bench1(g,'v0',dst,reps);t.forEach((x,i)=>T[i].push(x));
+      F.push(dijkstraFast(g,'v0',dst).closed.size/n*100);
+    }
+    out.push({n,e:Math.round(e/7),t:T.map(med),closed:med(F),closedMin:Math.min(...F),closedMax:Math.max(...F)});
   }
-  $('#benchTable').innerHTML=`<table class="t"><tr><th>V</th><th>E</th><th>Dijkstra (ms)</th><th>Bellman-Ford (ms)</th><th>Floyd-Warshall (ms)</th><th>Fechados (parada antecipada)</th></tr>${benchData.map(r=>`<tr><td>${r.n}</td><td>${r.e}</td>${r.t.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}<td>${r.closed} (${Math.round(r.closed/r.n*100)}%)</td></tr>`).join('')}</table>`;
-  log('INFO','Benchmark concluído para 25–200 vértices.');drawChart();
+  return out;
+}
+let worker=null;
+function getWorker(){
+  if(worker)return worker;
+  const src=[MinHeap,GraphCore,dijkstraGen,bellmanGen,floyd,dijkstraFast,randomGraph,bench1,benchSync].map(f=>f.toString()).join('\n')+
+    `\nconst fmt=${fmt.toString()};\nonmessage=()=>postMessage(benchSync());`;
+  worker=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));return worker;
+}
+$('#runBench').onclick=()=>{
+  const b=$('#runBench');b.disabled=true;b.textContent='Calculando em Web Worker…';
+  const done=data=>{benchData=data;b.disabled=false;b.textContent='Executar 25→200 V';showBench()};
+  try{const w=getWorker();w.onmessage=ev=>done(ev.data);w.onerror=()=>done(benchSync());w.postMessage(1)}
+  catch(_){done(benchSync())}
 };
+function showBench(){
+  $('#benchTable').innerHTML=`<table class="t"><tr><th>V</th><th>E</th><th>Dijkstra (ms, mediana)</th><th>Bellman-Ford (ms, mediana)</th><th>Floyd-Warshall (ms, mediana)</th><th>Fechados: mediana% (min–máx%)</th></tr>${benchData.map(r=>`<tr><td>${r.n}</td><td>${r.e}</td>${r.t.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}<td>${r.closed.toFixed(0)}% (${r.closedMin.toFixed(0)}–${r.closedMax.toFixed(0)}%)</td></tr>`).join('')}</table>`;
+  log('INFO','Benchmark concluído para 25–200 vértices (7 sementes por tamanho, mediana; Web Worker, sem travar a interface).');drawChart();
+}
 function drawChart(){
-  const c=$('#chart'),x=c.getContext('2d'),w=c.clientWidth,h=150;c.width=w*DPR;c.height=h*DPR;x.setTransform(DPR,0,0,DPR,0,0);
-  x.clearRect(0,0,w,h);if(!benchData){x.fillStyle=C['text-muted'];x.font='12px Inter';x.fillText('Execute o benchmark para ver o gráfico (escala logarítmica).',10,20);return}
+  const c=$('#chart'),x=c.getContext('2d'),w=c.clientWidth;
   const cols=[C['color-optimal'],C['color-tie'],C['color-algo-closed']],names=['Dijkstra','Bellman-Ford','Floyd-Warshall'];
-  const all=benchData.flatMap(r=>r.t).map(v=>Math.max(v,1e-4));const lo=Math.log10(Math.min(...all)),hi=Math.log10(Math.max(...all));
-  const px=i=>50+(w-70)*i/(benchData.length-1),py=v=>h-22-(h-40)*(Math.log10(Math.max(v,1e-4))-lo)/((hi-lo)||1);
-  x.strokeStyle=C['border-subtle'];x.beginPath();x.moveTo(50,10);x.lineTo(50,h-22);x.lineTo(w-20,h-22);x.stroke();
-  x.fillStyle=C['text-secondary'];x.font='11px JetBrains Mono';benchData.forEach((r,i)=>x.fillText('V='+r.n,px(i)-16,h-6));
-  x.fillText('ms (log)',4,14);
-  for(let a=0;a<3;a++){x.strokeStyle=cols[a];x.lineWidth=2;x.beginPath();benchData.forEach((r,i)=>{i?x.lineTo(px(i),py(r.t[a])):x.moveTo(px(i),py(r.t[a]))});x.stroke();
-    x.fillStyle=cols[a];x.fillText(names[a],w-150,18+a*14)}
+  // legenda no topo (fora da área do gráfico), com quebra de linha conforme a largura
+  x.font='11px JetBrains Mono';
+  const items=[['ms (log) · — medido  - - teórico (norm. V=25)',C['text-muted']],...names.map((n,a)=>[n,cols[a]])];
+  let lx=6,ly=12;const pos=[];for(const [t,col] of items){const iw=x.measureText(t).width+(col===C['text-muted']?0:16)+10;if(lx>6&&lx+iw>w-4){lx=6;ly+=15}pos.push([t,col,lx,ly]);lx+=iw}
+  const top=ly+10,h=top+Math.round(Math.min(150,w*.42))+22;
+  c.width=w*DPR;c.height=h*DPR;c.style.height=h+'px';x.setTransform(DPR,0,0,DPR,0,0);
+  x.clearRect(0,0,w,h);if(!benchData){x.fillStyle=C['text-muted'];x.font='12px Inter';x.fillText('Execute o benchmark para ver o gráfico (escala logarítmica).',10,20);return}
+  x.font='11px JetBrains Mono';
+  for(const [t,col,px0,py0] of pos){x.fillStyle=col;if(col===C['text-muted'])x.fillText(t,px0,py0);else{x.fillRect(px0,py0-4,12,3);x.fillText(t,px0+16,py0)}}
+  const th=[r=>(r.n+r.e)*Math.log2(r.n),r=>r.n*r.e,r=>r.n**3],kk=[0,1,2].map(a=>benchData[0].t[a]/th[a](benchData[0]));
+  const all=benchData.flatMap(r=>[...r.t,...th.map((f,a)=>kk[a]*f(r))]).map(v=>Math.max(v,1e-4));const lo=Math.log10(Math.min(...all)),hi=Math.log10(Math.max(...all));
+  const px=i=>34+(w-60)*i/(benchData.length-1),py=v=>h-22-(h-22-top-6)*(Math.log10(Math.max(v,1e-4))-lo)/((hi-lo)||1);
+  x.strokeStyle=C['border-subtle'];x.lineWidth=1;x.beginPath();x.moveTo(34,top);x.lineTo(34,h-22);x.lineTo(w-14,h-22);x.stroke();
+  x.fillStyle=C['text-secondary'];x.font='11px JetBrains Mono';x.textAlign='center';benchData.forEach((r,i)=>x.fillText('V='+r.n,Math.min(w-22,Math.max(22,px(i))),h-6));x.textAlign='left';
+  for(let a=0;a<3;a++){x.strokeStyle=cols[a];x.lineWidth=2;x.beginPath();benchData.forEach((r,i)=>{i?x.lineTo(px(i),py(r.t[a])):x.moveTo(px(i),py(r.t[a]))});x.stroke()}
+  x.lineWidth=1.5;x.setLineDash([4,4]);
+  for(let a=0;a<3;a++){const k=kk[a];x.strokeStyle=cols[a];x.beginPath();benchData.forEach((r,i)=>{const yy=py(k*th[a](r));i?x.lineTo(px(i),yy):x.moveTo(px(i),yy)});x.stroke()}
+  x.setLineDash([]);
 }
 
 /* ================= 3D ================= */
@@ -515,7 +733,7 @@ function setView(v){
 document.querySelectorAll('header .tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
 
 /* 3D topology: islands */
-let G3,pos3={},sync3dWeights=()=>{};
+let G3,pos3={},sel3=null,sync3dWeights=()=>{};
 function build3dTopology(){
   G3=new GraphCore();const P=(id,x,y,z,zone,kind)=>{G3.addNode(id,{zone,kind});pos3[id]={x,y,z}};
   // Internet cloud
@@ -538,7 +756,7 @@ async function init3d(){
   build3dTopology();
   const canvas=$('#v3d');const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(devicePixelRatio);renderer.setSize(W,H,false);
   const scene=new THREE.Scene();scene.background=new THREE.Color(0x090D16);scene.fog=new THREE.FogExp2(0x090D16,.0022);
-  const cam=new THREE.PerspectiveCamera(55,W/H,1,3000);cam.position.set(0,140,320);
+  const cam=new THREE.PerspectiveCamera(55,W/H,1,3000);cam.position.set(0,140,320).multiplyScalar(W/H<1?Math.min(1.4,1+(1-W/H)*.5):1);if(W/H<1)cam.fov=Math.min(95,2*Math.atan(Math.tan(27.5*Math.PI/180)/(W/H))*180/Math.PI),cam.updateProjectionMatrix();
   const ctl=new OrbitControls(cam,canvas);ctl.enableDamping=true;ctl.autoRotate=true;ctl.autoRotateSpeed=.6;
   scene.add(new THREE.AmbientLight(0x8899bb,.7));const dl=new THREE.PointLight(0xffffff,1.2,0,0);dl.position.set(0,200,200);scene.add(dl);
   const grid=new THREE.GridHelper(600,30,0x1E293B,0x111827);grid.position.y=-80;scene.add(grid);
@@ -570,7 +788,7 @@ async function init3d(){
   }
   sync3dWeights=()=>{
     for(const e3 of G3.edges()){const e2=G.edge(e3.from,e3.to);if(e2){e3.weight=e2.weight;e3.controlActive=e2.controlActive}
-      const o=edgeObj.get(e3);o.line.material.color.set(e3.controlActive?0x10B981:0x334155)}
+      const o=edgeObj.get(e3);o.line.material.color.set(e3===sel3?0x38BDF8:e3.controlActive?0x10B981:0x334155)}
     renderDef3d();
   };
   // defenses list
@@ -580,10 +798,21 @@ async function init3d(){
       const l=document.createElement('label');l.className='row';l.innerHTML=`<span class="mono" style="font-size:11px">${e.from}→${e.to} <b style="color:${e.controlActive?'var(--color-defense)':'var(--text-primary)'}">w=${e.weight}</b></span>`;
       const cb=document.createElement('input');cb.type='checkbox';cb.checked=e.controlActive;
       cb.onchange=()=>{e.weight=cb.checked?e.baseWeight+4:e.baseWeight;e.controlActive=cb.checked;const e2=G.edge(e.from,e.to);if(e2){e2.weight=e.weight;e2.controlActive=e.controlActive;resetAlgo()}
-        edgeObj.get(e).line.material.color.set(cb.checked?0x10B981:0x334155);log('DEFENSE',`[3D] Controle ${cb.checked?'ativo':'removido'} em ${e.from}→${e.to} (w=${e.weight}). Novas requisições recalculam rota.`);renderDef3d()};
+        edgeObj.get(e).line.material.color.set(e===sel3?0x38BDF8:cb.checked?0x10B981:0x334155);log('DEFENSE',`[3D] Controle ${cb.checked?'ativo':'removido'} em ${e.from}→${e.to} (w=${e.weight}). Novas requisições recalculam rota.`);renderDef3d()};
       l.append(cb);el.append(l)}
   }
   sync3dWeights();
+  // seleção de aresta por clique (raycast); distingue clique de arraste
+  const ray=new THREE.Raycaster();ray.params.Line.threshold=3;const ptr=new THREE.Vector2();let down=null;
+  canvas.addEventListener('pointerdown',ev=>{down={x:ev.clientX,y:ev.clientY}});
+  canvas.addEventListener('pointerup',ev=>{
+    if(!down||Math.hypot(ev.clientX-down.x,ev.clientY-down.y)>=5){down=null;return}down=null;
+    const r=canvas.getBoundingClientRect();ptr.set((ev.clientX-r.left)/r.width*2-1,-((ev.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ptr,cam);
+    const objs=[...edgeObj.values()].filter(o=>o.line.visible).map(o=>o.line);const hit=ray.intersectObjects(objs,false)[0];
+    if(!hit){if(sel3){sel3=null;selected=null;renderEditor();sync3dWeights()}return}
+    for(const [e3,o] of edgeObj)if(o.line===hit.object){sel3=e3;selected=G.edge(e3.from,e3.to)||e3;break}
+    renderEditor();sync3dWeights();
+  });
   // agents
   const agents=[];const pgeo=new THREE.SphereGeometry(2.4,10,8);
   const users=['Usuário-1','Usuário-2','Usuário-3','Parceiro'],threats=['Atacante-1','Atacante-2','Botnet'];
@@ -626,7 +855,7 @@ async function init3d(){
   $('#fRot').onchange=e=>ctl.autoRotate=e.target.checked;
   $('#rate').oninput=e=>$('#rateV').textContent=e.target.value;
   let clock=performance.now(),spawnAcc=0;
-  r3={resize:(w,h)=>{renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()},resetCam:()=>{cam.position.set(0,140,320);ctl.target.set(0,0,0)}};
+  r3={resize:(w,h)=>{renderer.setSize(w,h,false);cam.aspect=w/h;cam.fov=w/h<1?Math.min(95,2*Math.atan(Math.tan(27.5*Math.PI/180)/(w/h))*180/Math.PI):55;cam.updateProjectionMatrix()},resetCam:()=>{const a=cam.aspect;cam.position.set(0,140,320).multiplyScalar(a<1?Math.min(1.4,1+(1-a)*.5):1);ctl.target.set(0,0,0)}};
   function loop(now){
     requestAnimationFrame(loop);const dt=Math.min(.05,(now-clock)/1000);clock=now;
     if(view!=='3d')return;
@@ -664,6 +893,7 @@ for(const n of G.nodes){$('#src').add(new Option(n.id,n.id));$('#dst').add(new O
 $('#src').value=src;$('#dst').value=dst;
 $('#src').onchange=e=>{src=e.target.value;resetAlgo()};$('#dst').onchange=e=>{dst=e.target.value;resetAlgo()};
 addEventListener('resize',resize);resize();
+if(window.ResizeObserver){new ResizeObserver(()=>resize()).observe($('#viewport'));new ResizeObserver(()=>{computeLayout();for(const k in anim)pos[k]={...anim[k]}}).observe($('#overlay'))}
 applyScenario('A');runAll();updateKPIs();
 log('INFO','CyberGraph Engine pronto. Grafo G=(V,E) direcionado e ponderado com 6 vértices e 9 arestas.');
 requestAnimationFrame(frame);
